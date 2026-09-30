@@ -20,7 +20,10 @@ struct MetricsTests {
                 SystemMonitorCPUTests.run(suite)
             }),
             ("clipboard", { ClipboardFeatureTests.run(suite) }),
-            ("clipboard-image-optimizer", { ClipboardImageOptimizerTests.run(suite) }),
+            ("clipboard-image-optimizer", {
+                ClipboardImageOptimizerTests.run(suite)
+                ClipboardOptimizerFileTests.run(suite)
+            }),
             ("media-video-encoder", { MediaVideoEncoderTests.run(suite) }),
             ("pointer-input", {
                 PointerOnDisplayContract.run(suite)
