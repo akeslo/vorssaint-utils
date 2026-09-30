@@ -75,7 +75,7 @@ extension ClipboardImageOptimizerStrings {
     static let enUS = ClipboardImageOptimizerStrings(
         title: "Clipboard optimizer",
         hubDescription: "Copied images, videos and PDFs get smaller",
-        enable: "Shrink copied images",
+        enable: "Shrink copied files",
         caption: "With Keep, copied PNG and TIFF images are re-encoded without quality loss when that saves space. JPEG and resizing are lossy. Images copied with text, links or formatting are left alone.",
         formatLabel: "Format",
         formatKeep: "Keep (lossless)",
@@ -117,7 +117,7 @@ extension ClipboardImageOptimizerStrings {
     static let ptBR = ClipboardImageOptimizerStrings(
         title: "Otimizador da área de transferência",
         hubDescription: "Imagens, vídeos e PDFs copiados ficam menores",
-        enable: "Reduzir imagens copiadas",
+        enable: "Reduzir arquivos copiados",
         caption: "Com Manter, imagens PNG e TIFF copiadas são recodificadas sem perda de qualidade quando isso economiza espaço. JPEG e redimensionamento perdem qualidade. Imagens copiadas com texto, links ou formatação não são alteradas.",
         formatLabel: "Formato",
         formatKeep: "Manter (sem perdas)",
@@ -159,7 +159,7 @@ extension ClipboardImageOptimizerStrings {
     static let tr = ClipboardImageOptimizerStrings(
         title: "Pano iyileştirici",
         hubDescription: "Kopyalanan resimler, videolar ve PDF’ler küçülür",
-        enable: "Kopyalanan resimleri küçült",
+        enable: "Kopyalanan dosyaları küçült",
         caption: "Koru seçiliyken kopyalanan PNG ve TIFF resimler, yer kazandırdığında kalite kaybı olmadan yeniden kodlanır. JPEG ve yeniden boyutlandırma kalite kaybettirir. Metin, bağlantı veya biçimlendirmeyle kopyalanan resimlere dokunulmaz.",
         formatLabel: "Biçim",
         formatKeep: "Koru (kayıpsız)",
@@ -201,7 +201,7 @@ extension ClipboardImageOptimizerStrings {
     static let ru = ClipboardImageOptimizerStrings(
         title: "Оптимизатор буфера обмена",
         hubDescription: "Скопированные изображения, видео и PDF становятся меньше",
-        enable: "Сжимать скопированные изображения",
+        enable: "Сжимать скопированные файлы",
         caption: "В режиме «Сохранять» скопированные изображения PNG и TIFF перекодируются без потери качества, если это экономит место. JPEG и уменьшение размера снижают качество. Изображения, скопированные вместе с текстом, ссылками или форматированием, не изменяются.",
         formatLabel: "Формат",
         formatKeep: "Сохранять (без потерь)",
@@ -243,7 +243,7 @@ extension ClipboardImageOptimizerStrings {
     static let es = ClipboardImageOptimizerStrings(
         title: "Optimizador del portapapeles",
         hubDescription: "Las imágenes, vídeos y PDF copiados ocupan menos",
-        enable: "Reducir las imágenes copiadas",
+        enable: "Reducir los archivos copiados",
         caption: "Con Mantener, las imágenes PNG y TIFF copiadas se recodifican sin pérdida de calidad cuando así ocupan menos. JPEG y el cambio de tamaño pierden calidad. Las imágenes copiadas junto con texto, enlaces o formato no se tocan.",
         formatLabel: "Formato",
         formatKeep: "Mantener (sin pérdida)",
@@ -285,7 +285,7 @@ extension ClipboardImageOptimizerStrings {
     static let sk = ClipboardImageOptimizerStrings(
         title: "Optimalizátor schránky",
         hubDescription: "Skopírované obrázky, videá a PDF budú menšie",
-        enable: "Zmenšovať skopírované obrázky",
+        enable: "Zmenšovať skopírované súbory",
         caption: "Pri voľbe Zachovať sa skopírované obrázky PNG a TIFF znova zakódujú bez straty kvality, ak to ušetrí miesto. JPEG a zmena veľkosti kvalitu znižujú. Obrázky skopírované spolu s textom, odkazmi alebo formátovaním zostanú nezmenené.",
         formatLabel: "Formát",
         formatKeep: "Zachovať (bezstratovo)",
@@ -327,7 +327,7 @@ extension ClipboardImageOptimizerStrings {
     static let de = ClipboardImageOptimizerStrings(
         title: "Optimierung für die Zwischenablage",
         hubDescription: "Kopierte Bilder, Videos und PDFs werden kleiner",
-        enable: "Kopierte Bilder verkleinern",
+        enable: "Kopierte Dateien verkleinern",
         caption: "Mit „Beibehalten“ werden kopierte PNG- und TIFF-Bilder verlustfrei neu kodiert, wenn das Platz spart. JPEG und Verkleinern sind verlustbehaftet. Bilder, die zusammen mit Text, Links oder Formatierung kopiert wurden, bleiben unverändert.",
         formatLabel: "Format",
         formatKeep: "Beibehalten (verlustfrei)",
@@ -369,7 +369,7 @@ extension ClipboardImageOptimizerStrings {
     static let fr = ClipboardImageOptimizerStrings(
         title: "Optimiseur du presse-papiers",
         hubDescription: "Les images, vidéos et PDF copiés deviennent plus légers",
-        enable: "Alléger les images copiées",
+        enable: "Alléger les fichiers copiés",
         caption: "Avec Conserver, les images PNG et TIFF copiées sont réencodées sans perte de qualité quand cela réduit leur taille. Le JPEG et le redimensionnement réduisent la qualité. Les images copiées avec du texte, des liens ou une mise en forme ne sont pas modifiées.",
         formatLabel: "Format",
         formatKeep: "Conserver (sans perte)",
@@ -411,7 +411,7 @@ extension ClipboardImageOptimizerStrings {
     static let it = ClipboardImageOptimizerStrings(
         title: "Ottimizzatore degli appunti",
         hubDescription: "Immagini, video e PDF copiati diventano più leggeri",
-        enable: "Riduci le immagini copiate",
+        enable: "Riduci i file copiati",
         caption: "Con Mantieni, le immagini PNG e TIFF copiate vengono ricodificate senza perdita di qualità quando si risparmia spazio. JPEG e ridimensionamento riducono la qualità. Le immagini copiate insieme a testo, link o formattazione restano intatte.",
         formatLabel: "Formato",
         formatKeep: "Mantieni (senza perdita)",
@@ -453,7 +453,7 @@ extension ClipboardImageOptimizerStrings {
     static let ja = ClipboardImageOptimizerStrings(
         title: "クリップボードの最適化",
         hubDescription: "コピーした画像、ビデオ、PDF を小さく",
-        enable: "コピーした画像を縮小",
+        enable: "コピーしたファイルを縮小",
         caption: "「維持」では、コピーした PNG と TIFF の画像は、容量が減る場合に画質を落とさずに再エンコードされます。JPEG とサイズ変更では画質が落ちます。テキスト、リンク、書式と一緒にコピーした画像は変更しません。",
         formatLabel: "フォーマット",
         formatKeep: "維持（可逆）",
@@ -495,7 +495,7 @@ extension ClipboardImageOptimizerStrings {
     static let ko = ClipboardImageOptimizerStrings(
         title: "클립보드 최적화",
         hubDescription: "복사한 이미지, 비디오, PDF를 더 작게",
-        enable: "복사한 이미지 줄이기",
+        enable: "복사한 파일 줄이기",
         caption: "유지를 선택하면 복사한 PNG 및 TIFF 이미지는 용량이 줄어드는 경우 화질 손실 없이 다시 인코딩됩니다. JPEG와 크기 조절은 화질이 떨어집니다. 텍스트, 링크 또는 서식과 함께 복사한 이미지는 그대로 둡니다.",
         formatLabel: "포맷",
         formatKeep: "유지(무손실)",
@@ -537,7 +537,7 @@ extension ClipboardImageOptimizerStrings {
     static let zhHans = ClipboardImageOptimizerStrings(
         title: "剪贴板优化",
         hubDescription: "拷贝的图像、视频和 PDF 变得更小",
-        enable: "缩小拷贝的图像",
+        enable: "缩小拷贝的文件",
         caption: "选择“保持”时，拷贝的 PNG 和 TIFF 图像在能节省空间时会无损重新编码。JPEG 和缩放会损失画质。与文本、链接或格式一起拷贝的图像保持不变。",
         formatLabel: "格式",
         formatKeep: "保持（无损）",
@@ -579,7 +579,7 @@ extension ClipboardImageOptimizerStrings {
     static let zhTW = ClipboardImageOptimizerStrings(
         title: "剪貼板最佳化",
         hubDescription: "拷貝的影像、影片和 PDF 會變得更小",
-        enable: "縮小拷貝的影像",
+        enable: "縮小拷貝的檔案",
         caption: "選擇「保持」時，拷貝的 PNG 和 TIFF 影像在能節省空間時會無損重新編碼。JPEG 和縮放會損失畫質。與文字、連結或格式一起拷貝的影像保持不變。",
         formatLabel: "格式",
         formatKeep: "保持（無損）",
@@ -621,7 +621,7 @@ extension ClipboardImageOptimizerStrings {
     static let zhHK = ClipboardImageOptimizerStrings(
         title: "剪貼板優化",
         hubDescription: "拷貝的影像、影片和 PDF 會變得更細",
-        enable: "縮細拷貝的影像",
+        enable: "縮細拷貝的檔案",
         caption: "揀「保持」時，複製嘅 PNG 同 TIFF 圖像喺可以慳位時會無損重新編碼。JPEG 同縮放會損失質素。同文字、連結或格式一齊複製嘅圖像會保持不變。",
         formatLabel: "格式",
         formatKeep: "保持（無損）",
@@ -663,7 +663,7 @@ extension ClipboardImageOptimizerStrings {
     static let uk = ClipboardImageOptimizerStrings(
         title: "Оптимізатор буфера обміну",
         hubDescription: "Скопійовані зображення, відео й PDF стають меншими",
-        enable: "Стискати скопійовані зображення",
+        enable: "Стискати скопійовані файли",
         caption: "У режимі «Зберігати» скопійовані зображення PNG і TIFF перекодовуються без втрати якості, якщо це заощаджує місце. JPEG і зменшення розміру знижують якість. Зображення, скопійовані разом із текстом, посиланнями чи форматуванням, не змінюються.",
         formatLabel: "Формат",
         formatKeep: "Зберігати (без втрат)",
