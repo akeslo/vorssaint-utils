@@ -312,6 +312,9 @@ enum SettingsDirectory {
                                                              FeatureStrings.clipboardIgnoredApps(language)
                                                                 .listTitle]),
                                         (.pastePlain, [s.pastePlainName]),
+                                        (.clipboardImageOptimizer,
+                                         [FeatureStrings.clipboardImageOptimizer(language).title,
+                                          FeatureStrings.clipboardImageOptimizer(language).enable]),
                                        ]),
                 SettingsDirectoryItem(page: .cutPaste,
                                        title: FeatureStrings.finderRename(language).pageTitle,
