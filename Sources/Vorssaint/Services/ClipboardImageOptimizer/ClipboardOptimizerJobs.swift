@@ -5,8 +5,6 @@ import AVFoundation
 import Darwin
 import Foundation
 import ImageIO
-import PDFKit
-import Quartz
 
 /// The folder optimized files live in, and the only code that deletes from it.
 enum ClipboardOptimizerStore {
@@ -299,27 +297,24 @@ enum ClipboardFileOptimizer {
     static func optimizePDF(_ source: URL, options: Files.PDFOptions, job: URL,
                             isCancelled: () -> Bool) throws -> Result {
         let original = try preflight(source, capMB: options.maxMB, job: job)
-        guard let reader = CGPDFDocument(source as CFURL) else { throw Failure.skipped("unreadable") }
-        guard !Files.PDFTraits.read(reader).leavesAlone else { throw Failure.skipped("protected") }
-        let pages = reader.numberOfPages
-        guard pages > 0, !isCancelled() else { throw pages > 0 ? Failure.cancelled : Failure.skipped("empty") }
-
-        let filterURL = job.appendingPathComponent(".filter.qfilter")
-        guard (Files.pdfFilter(options) as NSDictionary).write(to: filterURL, atomically: true),
-              let filter = QuartzFilter(url: filterURL),
-              let document = PDFDocument(url: source)
-        else { throw Failure.failed("filter") }
         let output = Files.outputURL(root: job.deletingLastPathComponent(),
                                      id: UUID(uuidString: job.lastPathComponent) ?? UUID(),
                                      source: source, outputExtension: nil)
         let partial = Files.partialURL(for: output)
-        let written = autoreleasepool {
-            document.write(to: partial, withOptions: [PDFDocumentWriteOption(rawValue: "QuartzFilter"): filter])
+        do {
+            try MediaPDFCompressor.rewrite(source: source, to: partial, settings: options.settings,
+                                           filterName: Files.pdfFilterName, scratchDirectory: job,
+                                           isCancelled: isCancelled)
+        } catch let failure as MediaPDFCompressor.Failure {
+            switch failure {
+            case .unreadable: throw Failure.skipped("unreadable")
+            case .protected: throw Failure.skipped("protected")
+            case .empty: throw Failure.skipped("empty")
+            case .cancelled: throw Failure.cancelled
+            case .filter: throw Failure.failed("filter")
+            case .incompleteOutput: throw Failure.failed("incomplete output")
+            }
         }
-        try? FileManager.default.removeItem(at: filterURL)
-        guard !isCancelled() else { throw Failure.cancelled }
-        guard written, let check = CGPDFDocument(partial as CFURL), check.numberOfPages == pages
-        else { throw Failure.failed("incomplete output") }
         let size = Int64((try? partial.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
         guard worthKeeping(original: original, output: size) else { throw Failure.skipped("not smaller") }
         return Result(url: output, originalBytes: original,
