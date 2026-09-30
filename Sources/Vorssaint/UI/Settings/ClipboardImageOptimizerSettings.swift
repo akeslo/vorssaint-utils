@@ -38,27 +38,51 @@ struct ClipboardImageOptimizerSettings: View {
     }
 
     var body: some View {
+        // One switch per kind. The feature switch the hub and backup use is
+        // on exactly when some kind is, so there is no separate master row.
         Section {
-            Toggle(text.enable, isOn: $enabled)
-                .onChange(of: enabled) { _, _ in resync() }
-            if enabled {
-                imageControls
-                videoControls
-                pdfControls
-                storageControls
-            }
+            imageControls
         } header: {
             Text(text.title)
         }
         .settingsFormSectionAnchor(.clipboardImageOptimizer)
         .onAppear(perform: refreshStorage)
+        Section { videoControls }
+        Section { pdfControls }
+        if enabled {
+            Section { storageControls }
+        }
+    }
+
+    /// A kind reads as on only while the feature is on, so turning the
+    /// feature off in the hub never leaves a kind showing on here.
+    private func kind(_ value: Binding<Bool>) -> Binding<Bool> {
+        Binding(
+            get: { enabled && value.wrappedValue },
+            set: { isOn in
+                value.wrappedValue = isOn
+                if isOn {
+                    // Turning the feature back on from here must not revive
+                    // kinds the hub left on underneath.
+                    if !enabled {
+                        images = false
+                        videos = false
+                        pdfs = false
+                        value.wrappedValue = true
+                    }
+                    enabled = true
+                } else {
+                    enabled = images || videos || pdfs
+                }
+                resync()
+            }
+        )
     }
 
     @ViewBuilder private var imageControls: some View {
-        Toggle(text.imagesToggle, isOn: $images)
-            .onChange(of: images) { _, _ in resync() }
+        Toggle(text.imagesToggle, isOn: kind($images))
         caption(text.caption)
-        if images {
+        if enabled && images {
             Picker(text.formatLabel, selection: $format) {
                 Text(text.formatKeep).tag(ClipboardImageOptimizerSupport.FormatPolicy.keep.rawValue)
                 Text(text.formatJPEG).tag(ClipboardImageOptimizerSupport.FormatPolicy.jpeg.rawValue)
@@ -90,10 +114,9 @@ struct ClipboardImageOptimizerSettings: View {
     }
 
     @ViewBuilder private var videoControls: some View {
-        Toggle(text.videos, isOn: $videos)
-            .onChange(of: videos) { _, _ in resync() }
+        Toggle(text.videos, isOn: kind($videos))
         caption(text.videosCaption)
-        if videos {
+        if enabled && videos {
             Picker(text.videoCodec, selection: $videoCodec) {
                 Text(text.codecHEVC).tag(MediaVideoCodec.hevc.rawValue)
                 Text(text.codecH264).tag(MediaVideoCodec.h264.rawValue)
@@ -127,10 +150,9 @@ struct ClipboardImageOptimizerSettings: View {
     }
 
     @ViewBuilder private var pdfControls: some View {
-        Toggle(text.pdfs, isOn: $pdfs)
-            .onChange(of: pdfs) { _, _ in resync() }
+        Toggle(text.pdfs, isOn: kind($pdfs))
         caption(text.pdfsCaption)
-        if pdfs {
+        if enabled && pdfs {
             Picker(text.pdfDPI, selection: $pdfDPI) {
                 ForEach(Files.PDFOptions.dpiChoices, id: \.self) { value in
                     Text(String(format: text.dpiFormat, value)).tag(value)
