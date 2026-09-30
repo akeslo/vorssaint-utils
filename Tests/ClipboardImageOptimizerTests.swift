@@ -78,7 +78,7 @@ enum ClipboardImageOptimizerTests {
         check(snapshot(types: fileTypes, fileURLs: [URL(fileURLWithPath: "/tmp/a.gif")]), includeFiles: true,
               .skip(.notImage), "a copied GIF file is unsupported")
         check(snapshot(types: fileTypes, fileURLs: [URL(fileURLWithPath: "/tmp/a.heic")]), includeFiles: true,
-              .skip(.notImage), "a copied HEIC file is unsupported")
+              .skip(.kindDisabled), "a copied HEIC file waits for conversion to be turned on")
         check(snapshot(itemCount: 2, types: fileTypes, fileURLs: [png, jpeg]), includeFiles: true,
               .skip(.multipleItems), "several copied files are left alone")
     }
