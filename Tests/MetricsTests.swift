@@ -25,6 +25,7 @@ struct MetricsTests {
                 ClipboardOptimizerFileTests.run(suite)
             }),
             ("media-video-encoder", { MediaVideoEncoderTests.run(suite) }),
+            ("media-pdf-compressor", { MediaPDFCompressorTests.run(suite) }),
             ("pointer-input", {
                 PointerOnDisplayContract.run(suite)
                 PointerInputFeatureTests.run(suite)
