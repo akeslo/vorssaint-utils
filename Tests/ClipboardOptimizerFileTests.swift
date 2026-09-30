@@ -21,8 +21,10 @@ enum ClipboardOptimizerFileTests {
         upgrade(suite)
         options(suite)
         gates(suite)
+        pdfFilter(suite)
         pdfTraits(suite)
         imageTraits(suite)
+        conversion(suite)
         outputs(suite)
         sweep(suite)
         history(suite)
@@ -160,6 +162,18 @@ enum ClipboardOptimizerFileTests {
         defaults.removePersistentDomain(forName: "ClipboardOptimizerFileTests.options")
     }
 
+    static func pdfFilter(_ suite: TestSuite) {
+        let filter = Files.pdfFilter(Files.PDFOptions(dpi: 100, quality: 0.55, maxMB: 100)) as NSDictionary
+        suite.expect(filter.value(forKeyPath: "FilterData.ColorSettings.ImageSettings.ImageScaleSettings.ImageResolution")
+                     as? Int == 100, "the filter resamples images to the chosen DPI")
+        suite.expect(filter.value(forKeyPath: "FilterData.ColorSettings.ImageSettings.Compression Quality")
+                     as? Double == 0.55, "the filter uses the chosen quality")
+        suite.expect(filter.value(forKeyPath: "FilterData.ColorSettings.ImageSettings.ImageCompression")
+                     as? String == "ImageJPEGCompress", "images are stored as JPEG")
+        suite.expect(PropertyListSerialization.propertyList(filter, isValidFor: .xml),
+                     "the filter is a valid property list")
+    }
+
     static func gates(_ suite: TestSuite) {
         let mb: Int64 = 1024 * 1024
         suite.expect(Files.sizeGate(bytes: 0, capMB: 100) == .empty, "an empty file is skipped")
@@ -260,6 +274,52 @@ enum ClipboardOptimizerFileTests {
         suite.expect(stillTraits?.leavesAlone == false, "a still PNG reads as optimizable: \(String(describing: stillTraits))")
         let animatedTraits = CGImageSourceCreateWithData(animated, nil).flatMap(Files.ImageTraits.read)
         suite.expect(animatedTraits?.frameCount == 2, "an animated PNG reads as animated")
+    }
+
+    static func image(width: Int, height: Int, alpha: Bool, type: String, frames: Int = 1) -> Data {
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: (alpha ? CGImageAlphaInfo.premultipliedLast
+                                                   : CGImageAlphaInfo.noneSkipLast).rawValue)!
+        for x in stride(from: 0, to: width, by: 4) {
+            context.setFillColor(CGColor(red: CGFloat(x % 255) / 255, green: 0.4, blue: 0.2,
+                                         alpha: alpha ? 0.5 : 1))
+            context.fill(CGRect(x: x, y: 0, width: 4, height: height))
+        }
+        let picture = context.makeImage()!
+        let data = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(data, type as CFString, frames, nil)!
+        for _ in 0..<frames { CGImageDestinationAddImage(destination, picture, nil) }
+        CGImageDestinationFinalize(destination)
+        return data as Data
+    }
+
+    static func conversion(_ suite: TestSuite) {
+        let options = Support.Options.sanitized(format: "keep", quality: 0.7, maxDimension: 0, halveRetina: false,
+                                                includeFiles: true)
+        let opaque = image(width: 64, height: 40, alpha: false, type: "com.microsoft.bmp")
+        let converted = ClipboardImageOptimizerEncoding.convert(data: opaque, options: options, isCancelled: { false })
+        suite.expect(converted?.type == "public.jpeg" && converted?.longEdge == 64,
+                     "an opaque BMP becomes a full-size JPEG: \(String(describing: converted?.type))")
+        let clear = image(width: 64, height: 40, alpha: true, type: "public.tiff")
+        suite.expect(ClipboardImageOptimizerEncoding.convert(data: clear, options: options,
+                                                             isCancelled: { false })?.type == "public.png",
+                     "an image with transparency becomes PNG, never JPEG")
+        let limited = Support.Options.sanitized(format: "keep", quality: 0.7, maxDimension: 1600, halveRetina: true,
+                                                includeFiles: true)
+        suite.expect(ClipboardImageOptimizerEncoding.convert(data: opaque, options: limited,
+                                                             isCancelled: { false })?.longEdge == 32,
+                     "conversion honors the resize options")
+        let animated = image(width: 16, height: 16, alpha: false, type: "public.png", frames: 3)
+        suite.expect(ClipboardImageOptimizerEncoding.convert(data: animated, options: options,
+                                                             isCancelled: { false }) == nil,
+                     "an animation is never flattened into one frame")
+        suite.expect(ClipboardImageOptimizerEncoding.optimize(data: animated, sourceType: "public.png",
+                                                              options: options, isCancelled: { false }) == nil,
+                     "an animated PNG on the clipboard is left alone")
+        suite.expect(ClipboardImageOptimizerEncoding.convert(data: opaque, options: options,
+                                                             isCancelled: { true }) == nil,
+                     "a cancelled conversion yields nothing")
     }
 
     static func outputs(_ suite: TestSuite) {
