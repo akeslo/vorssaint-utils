@@ -121,6 +121,7 @@ def main():
           + "final class Service: Fixture {\n"
           + declaration(brightness, "    private func step(").replace("private ", "", 1)
           + declaration(brightness, "    private func writeExtendedBrightness(").replace("private ", "", 1)
+          + declaration(brightness, "    private static func writeSystemBrightness(").replace("private ", "", 1)
           + "}\n}\n")
     activator = "Sources/Vorssaint/Services/Switcher/WindowActivator.swift"
     write("SwitcherActivationBodies.swift", "import AppKit\nimport ApplicationServices\n"
@@ -569,6 +570,7 @@ def main():
             .replace("    func", "    @discardableResult\n    func", 1)
           + "".join(declaration(notch, prefix).replace("    private ", "    ", 1) for prefix in [
               "    private var hiddenUntilHover:", "    private var hiddenAtRestInFullscreen:", "    func hover(",
+              "    private func syncHoverExitMonitoring(", "    private func removeHoverExitMonitors(",
               "    var showsCompactActivityPicker:",
               "    private func missionControlDidRestore()",
               "    private var holdsNotification:", "    private func holdNotification(",
