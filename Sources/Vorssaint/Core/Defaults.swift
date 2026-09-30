@@ -522,6 +522,9 @@ enum DefaultsKey {
     static let mediaImageSaveInSubfolder = "mediaImageSaveInSubfolder"
     static let mediaImageProfiles = "mediaImageProfiles"
     static let mediaImageSelectedProfileID = "mediaImageSelectedProfileID"
+    static let mediaPDFDPI = "mediaPDFDPI"
+    static let mediaPDFQuality = "mediaPDFQuality"
+    static let mediaPDFGrayscale = "mediaPDFGrayscale"
     static let mediaTextAccurate = "mediaTextAccurate"
     static let mediaTextLanguageCorrection = "mediaTextLanguageCorrection"
 
@@ -1642,6 +1645,9 @@ enum Defaults {
         DefaultsKey.mediaImageSaveInSubfolder: false,
         DefaultsKey.mediaImageProfiles: "[]",
         DefaultsKey.mediaImageSelectedProfileID: "",
+        DefaultsKey.mediaPDFDPI: MediaPDFCompressor.Settings.defaultDPI,
+        DefaultsKey.mediaPDFQuality: MediaPDFCompressor.Settings.defaultQuality,
+        DefaultsKey.mediaPDFGrayscale: false,
         DefaultsKey.mediaTextAccurate: true,
         DefaultsKey.mediaTextLanguageCorrection: true,
         DefaultsKey.clipboardHistoryEnabled: false,

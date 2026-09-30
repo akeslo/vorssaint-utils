@@ -313,6 +313,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/AlertSoundStrings.swift
         Sources/Vorssaint/Core/BrightnessStrings.swift
         Sources/Vorssaint/Core/MediaImageStrings.swift
+        Sources/Vorssaint/Core/MediaPDFStrings.swift
         Sources/Vorssaint/Core/QuickToggleStrings.swift
         Sources/Vorssaint/Core/ScreenshotStrings.swift
         Sources/Vorssaint/Core/RecentCaptureStrings.swift
