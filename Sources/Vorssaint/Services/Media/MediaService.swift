@@ -692,18 +692,17 @@ final class MediaService: ObservableObject {
             try writePDF(image: image, outputURL: outputURL,
                          quality: MediaSupport.sanitizedQuality(options.quality))
         } else {
-            let type = typeIdentifier(for: options.format)
+            let type = MediaImageEncoder.typeIdentifier(for: options.format)
             guard let destination = CGImageDestinationCreateWithURL(outputURL as CFURL, type as CFString, 1, nil) else {
                 throw MediaFailureBox(.unsupported)
             }
-            var outputProperties: [CFString: Any] = [
-                kCGImageDestinationLossyCompressionQuality: MediaSupport.sanitizedQuality(options.quality),
-            ]
-            if !options.stripMetadata {
-                outputProperties.merge(sanitizedImageProperties(properties, image: image)) { current, _ in current }
+            let metadata = options.stripMetadata
+                ? [:] : MediaImageEncoder.sanitizedImageProperties(properties, image: image)
+            guard MediaImageEncoder.write(image, to: destination,
+                                          quality: MediaSupport.sanitizedQuality(options.quality),
+                                          properties: metadata) else {
+                throw MediaFailureBox(.unsupported)
             }
-            CGImageDestinationAddImage(destination, image, outputProperties as CFDictionary)
-            guard CGImageDestinationFinalize(destination) else { throw MediaFailureBox(.unsupported) }
         }
     }
 
@@ -1103,14 +1102,6 @@ final class MediaService: ObservableObject {
         return try result.get()
     }
 
-    private func sanitizedImageProperties(_ properties: [CFString: Any], image: CGImage) -> [CFString: Any] {
-        var clean = properties
-        clean.removeValue(forKey: kCGImagePropertyOrientation)
-        clean[kCGImagePropertyPixelWidth] = image.width
-        clean[kCGImagePropertyPixelHeight] = image.height
-        return clean
-    }
-
     /// CGImageDestination accepts com.adobe.pdf but ignores the lossy quality,
     /// embedding the bitmap losslessly. Re-encoding as JPEG at the chosen
     /// quality and drawing that image into a PDF context makes Quartz embed
@@ -1136,15 +1127,6 @@ final class MediaService: ObservableObject {
         pdf.draw(encoded, in: mediaBox)
         pdf.endPDFPage()
         pdf.closePDF()
-    }
-
-    private func typeIdentifier(for format: MediaImageFormat) -> String {
-        switch format {
-        case .jpeg: return UTType.jpeg.identifier
-        case .heic: return UTType.heic.identifier
-        case .png: return UTType.png.identifier
-        case .pdf: return UTType.pdf.identifier
-        }
     }
 
     private func fileSize(_ url: URL) -> Int64 {
