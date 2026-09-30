@@ -4,10 +4,12 @@
 import AppKit
 import Foundation
 
-/// Re-encodes a lone copied image into a smaller one of the same kind. Polls
-/// like the URL cleaner: change count, item count and type names only, and the
-/// image itself is read only once those say it qualifies. Whatever is already
-/// on the pasteboard when it starts is never touched.
+/// Re-encodes a lone copied image into a smaller one of the same kind, and a
+/// lone copied video, PDF or HEIC-style image into a smaller file that the
+/// clipboard then points at. Polls like the URL cleaner: change count, item
+/// count and type names only, and content is read only once those say it
+/// qualifies. Whatever is already on the pasteboard when it starts is never
+/// touched, and a copied file itself is only ever read.
 final class ClipboardImageOptimizerService: ObservableObject {
     static let shared = ClipboardImageOptimizerService()
 
@@ -30,11 +32,67 @@ final class ClipboardImageOptimizerService: ObservableObject {
         }
     }
 
+    /// One copied file being turned into a smaller one. Cancelled by any new
+    /// copy, a setting that rules it out, sleep, or the feature stopping.
+    private final class FileJob {
+        let changeCount: Int
+        let generation: Int
+        let source: ClipboardImageOptimizerSupport.Source
+        let directory: URL
+        private let lock = NSLock()
+        private var cancelled = false
+        private var process: Process?
+        private(set) var cancelledAt: Date?
+
+        init(changeCount: Int, generation: Int, source: ClipboardImageOptimizerSupport.Source, directory: URL) {
+            self.changeCount = changeCount
+            self.generation = generation
+            self.source = source
+            self.directory = directory
+        }
+
+        var isCancelled: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return cancelled
+        }
+
+        /// The encoder notices and stops its process itself; `immediately`
+        /// is for quitting, when there is no time to wait for that.
+        func cancel(immediately: Bool = false) {
+            lock.lock()
+            if !cancelled {
+                cancelled = true
+                cancelledAt = Date()
+            }
+            let process = self.process
+            lock.unlock()
+            if immediately, let process, process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
+        }
+
+        func attach(_ process: Process) {
+            lock.lock()
+            self.process = process
+            let cancelled = self.cancelled
+            lock.unlock()
+            if cancelled { process.terminate() }
+        }
+    }
+
     private static let pollTimeout: TimeInterval = 2
+    /// A cancelled job that has not stopped by then is left to finish alone;
+    /// its result is dropped and its folder swept.
+    private static let abandonAfter: TimeInterval = 2
     private static let readTimeout: TimeInterval = 4
 
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
+    private var sleepObserver: NSObjectProtocol?
+    private var fileJob: FileJob?
+    /// The optimized file most recently put on the clipboard; never swept.
+    private var lastOutputPath: String?
     private var lastChangeCount = 0
     /// No poll acts until the starting change count is known; otherwise a
     /// timed-out baseline would let the image already copied be rewritten.
@@ -52,6 +110,10 @@ final class ClipboardImageOptimizerService: ObservableObject {
     private var enabled = false
 
     private let encodeQueue = DispatchQueue(label: "Vorssaint.ClipboardImageOptimizer.encode", qos: .utility)
+    /// Videos can take minutes, so file jobs get their own queue and never
+    /// hold up the image queue, the pasteboard lane or the main thread.
+    private let jobQueue = DispatchQueue(label: "Vorssaint.ClipboardImageOptimizer.files", qos: .utility)
+    private let storeQueue = DispatchQueue(label: "Vorssaint.ClipboardImageOptimizer.store", qos: .utility)
 
     private init() {}
 
@@ -59,8 +121,49 @@ final class ClipboardImageOptimizerService: ObservableObject {
         if AppFeature.clipboardImageOptimizer.isAvailable,
            UserDefaults.standard.bool(forKey: DefaultsKey.clipboardImageOptimizerEnabled) {
             start()
+            if let job = fileJob, !Self.scope().allows(job.source) { job.cancel() }
         } else {
+            let wasRunning = isRunning
             stop()
+            if wasRunning { clearOptimizedCopies() }
+        }
+    }
+
+    /// Deletes every optimized copy the clipboard and pinned history no
+    /// longer need. Runs when the feature is turned off and from Settings.
+    func clearOptimizedCopies(completion: (() -> Void)? = nil) {
+        let protected = protectedPaths()
+        storeQueue.async {
+            ClipboardOptimizerStore.clear(protected: protected)
+            if let completion { DispatchQueue.main.async(execute: completion) }
+        }
+    }
+
+    /// Bytes stored, and how many of them pinned history or the clipboard keep.
+    func storedBytes(_ completion: @escaping (_ total: Int64, _ kept: Int64) -> Void) {
+        let protected = protectedPaths()
+        storeQueue.async {
+            let sizes = ClipboardOptimizerStore.totalBytes(protected: protected)
+            DispatchQueue.main.async { completion(sizes.all, sizes.protected) }
+        }
+    }
+
+    private static func scope() -> ClipboardImageOptimizerSupport.Scope {
+        .fromDefaults(outputRoot: ClipboardOptimizerStore.rootURL)
+    }
+
+    /// Read on main, where history lives, and handed to the store queue.
+    private func protectedPaths() -> Set<String> {
+        var paths = ClipboardHistoryService.shared.referencedFilePaths.pinned
+        if let lastOutputPath { paths.insert(lastOutputPath) }
+        return paths
+    }
+
+    private func sweep() {
+        let protected = protectedPaths()
+        let referenced = ClipboardHistoryService.shared.referencedFilePaths.recent
+        storeQueue.async {
+            ClipboardOptimizerStore.sweep(protected: protected, referenced: referenced)
         }
     }
 
@@ -71,6 +174,12 @@ final class ClipboardImageOptimizerService: ObservableObject {
             NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
             self.wakeObserver = nil
         }
+        if let sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
+            self.sleepObserver = nil
+        }
+        fileJob?.cancel(immediately: true)
+        fileJob = nil
         cancelPoll()
         updateState(enabled: false)
         encodeInFlight = false
@@ -98,8 +207,16 @@ final class ClipboardImageOptimizerService: ObservableObject {
                 self?.hasBaseline = false
                 self?.baseline()
             }
+        // An encode would stall or die across sleep; wake starts from a fresh
+        // baseline, so the file is left as it was.
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.fileJob?.cancel()
+            }
         isRunning = true
         baseline()
+        storeQueue.async { ClipboardOptimizerStore.killOrphanedEncoders() }
+        sweep()
     }
 
     private func updateState(enabled: Bool) {
@@ -144,7 +261,7 @@ final class ClipboardImageOptimizerService: ObservableObject {
         pollToken = token
         pollInFlight = true
         let since = lastChangeCount
-        let includeFiles = UserDefaults.standard.bool(forKey: DefaultsKey.clipboardImageOptimizerIncludeFiles)
+        let includeFiles = Self.scope().readsFiles
         GeneralPasteboardAccess.shared.async(timeout: Self.pollTimeout, { _ in
             token.isCancelled ? nil : Self.readSnapshot(since: since, includeFiles: includeFiles)
         }, then: { [weak self] snapshot in
@@ -152,6 +269,17 @@ final class ClipboardImageOptimizerService: ObservableObject {
             self.pollToken = nil
             self.pollInFlight = false
             guard self.isRunning, let snapshot, snapshot.changeCount != self.lastChangeCount else { return }
+            // Anything new on the clipboard ends the file job in flight. The
+            // new copy is looked at once that job has stopped, so two
+            // encoders never run at once.
+            if let job = self.fileJob, job.changeCount != snapshot.changeCount {
+                job.cancel()
+                if let cancelledAt = job.cancelledAt, Date().timeIntervalSince(cancelledAt) > Self.abandonAfter {
+                    self.fileJob = nil
+                } else {
+                    return
+                }
+            }
             self.lastChangeCount = snapshot.changeCount
             self.consider(snapshot)
         })
@@ -181,8 +309,12 @@ final class ClipboardImageOptimizerService: ObservableObject {
     private func consider(_ snapshot: PasteboardImageSnapshot) {
         let options = ClipboardImageOptimizerSupport.Options.fromDefaults()
         guard case .eligible(let source) = ClipboardImageOptimizerSupport.eligibility(
-            snapshot, lastOwnWrite: lastOwnWrite, includeFiles: options.includeFiles) else { return }
+            snapshot, lastOwnWrite: lastOwnWrite, scope: Self.scope()) else { return }
         let state = currentState()
+        if source.usesOutputFile {
+            startFileJob(source, snapshot: snapshot, options: options, generation: state.generation)
+            return
+        }
         encodeInFlight = true
         switch source {
         case .bitmap(let type):
@@ -206,7 +338,85 @@ final class ClipboardImageOptimizerService: ObservableObject {
                 guard size > 0, size <= ClipboardImageOptimizerSupport.maxBytes else { return nil }
                 return try? Data(contentsOf: url)
             }, sourceType: uti, snapshot: snapshot, options: options, generation: state.generation)
+        case .convertedImage, .video, .pdf:
+            break
         }
+    }
+
+    // MARK: Copied files that become new files
+
+    private func startFileJob(_ source: ClipboardImageOptimizerSupport.Source,
+                              snapshot: PasteboardImageSnapshot,
+                              options: ClipboardImageOptimizerSupport.Options,
+                              generation: Int) {
+        guard fileJob == nil, let directory = ClipboardOptimizerStore.makeJobDirectory() else { return }
+        let job = FileJob(changeCount: snapshot.changeCount, generation: generation, source: source,
+                          directory: directory)
+        fileJob = job
+        let video = ClipboardOptimizerFileSupport.VideoOptions.fromDefaults()
+        let pdf = ClipboardOptimizerFileSupport.PDFOptions.fromDefaults()
+        jobQueue.async { [weak self] in
+            guard let self else { return }
+            let isCancelled = { job.isCancelled || self.currentState().generation != generation }
+            let outcome: Result<ClipboardFileOptimizer.Result, Error> = Result {
+                switch source {
+                case .video(let url):
+                    return try ClipboardFileOptimizer.optimizeVideo(url, options: video, job: directory,
+                                                                    isCancelled: isCancelled,
+                                                                    launched: { job.attach($0) })
+                case .pdf(let url):
+                    return try ClipboardFileOptimizer.optimizePDF(url, options: pdf, job: directory,
+                                                                  isCancelled: isCancelled)
+                case .convertedImage(let url, _):
+                    return try ClipboardFileOptimizer.convertImage(url, options: options, job: directory,
+                                                                   isCancelled: isCancelled)
+                case .bitmap, .file:
+                    throw ClipboardFileOptimizer.Failure.skipped("not a file job")
+                }
+            }
+            if case .failure = outcome { try? FileManager.default.removeItem(at: directory) }
+            DispatchQueue.main.async {
+                self.finishFileJob(job, outcome: outcome, snapshot: snapshot)
+            }
+        }
+    }
+
+    private func finishFileJob(_ job: FileJob,
+                               outcome: Result<ClipboardFileOptimizer.Result, Error>,
+                               snapshot: PasteboardImageSnapshot) {
+        if fileJob === job { fileJob = nil }
+        guard case .success(let result) = outcome else { return }
+        let state = currentState()
+        guard !job.isCancelled, state.enabled, state.generation == job.generation,
+              let original = snapshot.fileURLs.first else {
+            try? FileManager.default.removeItem(at: job.directory)
+            return
+        }
+        let source = job.source
+        GeneralPasteboardAccess.shared.async({ [weak self] () -> Int? in
+            guard let self else { return nil }
+            let pasteboard = NSPasteboard.general
+            let state = self.currentState()
+            guard OptimizationCommit.accepts(generation: job.generation, current: state.generation,
+                                             enabled: state.enabled, kindEnabled: Self.scope().allows(source),
+                                             pasteboardChangeCount: pasteboard.changeCount,
+                                             snapshotChangeCount: snapshot.changeCount) else { return nil }
+            pasteboard.clearContents()
+            guard pasteboard.writeObjects([result.url as NSURL]) else { return nil }
+            return pasteboard.changeCount
+        }, then: { [weak self] newChangeCount in
+            guard let self else { return }
+            guard let newChangeCount else {
+                try? FileManager.default.removeItem(at: job.directory)
+                return
+            }
+            self.lastOwnWrite = newChangeCount
+            self.lastChangeCount = max(self.lastChangeCount, newChangeCount)
+            self.lastOutputPath = result.url.path
+            ClipboardAutoClearService.shared.noteOwnRewrite(from: snapshot.changeCount, to: newChangeCount)
+            ClipboardHistoryService.shared.noteOptimizedRewrite(from: [original.path], to: [result.url.path])
+            self.sweep()
+        })
     }
 
     private func encode(data load: @escaping () -> Data?,
