@@ -246,7 +246,8 @@ enum ClipboardImageOptimizerEncoding {
                          options: ClipboardImageOptimizerSupport.Options,
                          isCancelled: () -> Bool) -> Output? {
         guard !isCancelled(), let info = MediaImageEncoder.imageInfo(data),
-              !ClipboardImageOptimizerSupport.isTooLarge(bytes: data.count, pixels: info.width * info.height)
+              !ClipboardImageOptimizerSupport.isTooLarge(bytes: data.count, pixels: info.width * info.height),
+              !leavesAlone(data)
         else { return nil }
         let plan = ClipboardImageOptimizerSupport.plan(options, sourceType: sourceType, hasAlpha: info.hasAlpha,
                                                        width: info.width, height: info.height)
@@ -263,6 +264,49 @@ enum ClipboardImageOptimizerEncoding {
                                                                encodedBytes: encoded.count)
             else { return nil }
             return Output(data: encoded, type: plan.outputType)
+        }
+    }
+
+    /// Animations, HDR, deep color and gain or depth maps would not survive
+    /// an 8-bit PNG or JPEG.
+    static func leavesAlone(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let traits = ClipboardOptimizerFileSupport.ImageTraits.read(source) else { return true }
+        return traits.leavesAlone
+    }
+
+    struct Converted: Equatable {
+        let data: Data
+        let type: String
+        let longEdge: Int
+    }
+
+    /// Turns a still HEIC, WebP, AVIF or BMP into a JPEG, or a PNG when it
+    /// has transparency. Unlike `optimize` it always yields a file when it
+    /// can, since the point is a format every app opens.
+    static func convert(data: Data,
+                        options: ClipboardImageOptimizerSupport.Options,
+                        isCancelled: () -> Bool) -> Converted? {
+        guard !isCancelled(), let info = MediaImageEncoder.imageInfo(data),
+              !ClipboardImageOptimizerSupport.isTooLarge(bytes: data.count, pixels: info.width * info.height),
+              !leavesAlone(data)
+        else { return nil }
+        var jpegOptions = options
+        jpegOptions.format = .jpeg
+        let plan = ClipboardImageOptimizerSupport.plan(jpegOptions, sourceType: "public.image",
+                                                       hasAlpha: info.hasAlpha, width: info.width,
+                                                       height: info.height)
+        return autoreleasepool { () -> Converted? in
+            guard !isCancelled(), let image = MediaImageEncoder.decode(
+                      data, maxPixel: plan.maxPixel ?? max(info.width, info.height)),
+                  !isCancelled(),
+                  let encoded = MediaImageEncoder.encode(
+                      image, type: plan.outputType, quality: plan.quality,
+                      properties: resolution(info.dpi, scale: Double(max(image.width, image.height))
+                                                 / Double(max(info.width, info.height, 1)))),
+                  !isCancelled()
+            else { return nil }
+            return Converted(data: encoded, type: plan.outputType, longEdge: max(image.width, image.height))
         }
     }
 

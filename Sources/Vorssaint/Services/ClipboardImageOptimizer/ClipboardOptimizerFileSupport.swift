@@ -100,6 +100,30 @@ enum ClipboardOptimizerFileSupport {
         return value
     }
 
+    /// A Quartz filter that resamples embedded images to `dpi` on the page
+    /// and stores them as JPEG. Text, links and form fields are left as they
+    /// are; only image streams change.
+    static func pdfFilter(_ options: PDFOptions) -> [String: Any] {
+        [
+            "Domains": ["Applications": true, "Printing": true],
+            "FilterType": 1,
+            "Name": "Vorssaint clipboard optimizer",
+            "FilterData": [
+                "ColorSettings": [
+                    "ImageSettings": [
+                        "Compression Quality": options.quality,
+                        "ImageCompression": "ImageJPEGCompress",
+                        "ImageScaleSettings": [
+                            "ImageResolution": options.dpi,
+                            "ImageScaleInterpolate": true,
+                            "ImageSizeMin": 0,
+                        ] as [String: Any],
+                    ] as [String: Any],
+                ],
+            ],
+        ]
+    }
+
     // MARK: Gates
 
     enum Gate: Equatable {
