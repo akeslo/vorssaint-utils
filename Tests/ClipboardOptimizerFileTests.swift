@@ -16,6 +16,15 @@ enum ClipboardOptimizerFileTests {
         PasteboardImageSnapshot(changeCount: changeCount, itemCount: 1, types: types, fileURLs: [url])
     }
 
+    /// The app registers these globally; a test suite gets them written in,
+    /// since registering would leak into every other test's defaults.
+    static func seedRegistered(_ defaults: UserDefaults) {
+        for (key, value) in Defaults.registeredDefaults where key.hasPrefix("clipboardOptimizer")
+            || key.hasPrefix("clipboardImageOptimizer") {
+            defaults.set(value, forKey: key)
+        }
+    }
+
     static func run(_ suite: TestSuite) {
         eligibility(suite)
         upgrade(suite)
@@ -95,9 +104,9 @@ enum ClipboardOptimizerFileTests {
     /// Someone who set the image optimizer up before videos and PDFs existed
     /// keeps exactly what they had.
     static func upgrade(_ suite: TestSuite) {
-        let defaults = UserDefaults(suiteName: "ClipboardOptimizerFileTests.upgrade")!
-        defaults.removePersistentDomain(forName: "ClipboardOptimizerFileTests.upgrade")
-        defaults.register(defaults: Defaults.registeredDefaults)
+        let defaults = UserDefaults(suiteName: "vorss.tests.clipboardOptimizer.upgrade")!
+        defaults.removePersistentDomain(forName: "vorss.tests.clipboardOptimizer.upgrade")
+        seedRegistered(defaults)
         defaults.set(true, forKey: DefaultsKey.clipboardImageOptimizerEnabled)
         defaults.set(true, forKey: DefaultsKey.clipboardImageOptimizerIncludeFiles)
         let scope = Support.Scope.fromDefaults(defaults, outputRoot: root)
@@ -111,7 +120,7 @@ enum ClipboardOptimizerFileTests {
         suite.expect(Support.eligibility(snapshot(png), lastOwnWrite: nil, includeFiles: true)
                      == .eligible(.file(png, uti: "public.png")),
                      "the older entry point keeps its meaning")
-        defaults.removePersistentDomain(forName: "ClipboardOptimizerFileTests.upgrade")
+        defaults.removePersistentDomain(forName: "vorss.tests.clipboardOptimizer.upgrade")
     }
 
     static func options(_ suite: TestSuite) {
@@ -139,9 +148,9 @@ enum ClipboardOptimizerFileTests {
         suite.expect(Files.PDFOptions.sanitized(dpi: 72, quality: 0.5, maxMB: 250)
                      == Files.PDFOptions(dpi: 72, quality: 0.5, maxMB: 250), "valid PDF choices are kept")
 
-        let defaults = UserDefaults(suiteName: "ClipboardOptimizerFileTests.options")!
-        defaults.removePersistentDomain(forName: "ClipboardOptimizerFileTests.options")
-        defaults.register(defaults: Defaults.registeredDefaults)
+        let defaults = UserDefaults(suiteName: "vorss.tests.clipboardOptimizer.options")!
+        defaults.removePersistentDomain(forName: "vorss.tests.clipboardOptimizer.options")
+        seedRegistered(defaults)
         suite.expect(Files.VideoOptions.fromDefaults(defaults) == Files.VideoOptions(
             codec: .hevc, quality: Files.VideoOptions.defaultQuality,
             maxDimension: Files.VideoOptions.defaultMaxDimension, removeAudio: false,
@@ -159,7 +168,7 @@ enum ClipboardOptimizerFileTests {
                     DefaultsKey.clipboardOptimizerPDFMaxMB] {
             suite.expect(Defaults.registeredDefaults[key] != nil, "\(key) is a registered default, so backup includes it")
         }
-        defaults.removePersistentDomain(forName: "ClipboardOptimizerFileTests.options")
+        defaults.removePersistentDomain(forName: "vorss.tests.clipboardOptimizer.options")
     }
 
     static func pdfFilter(_ suite: TestSuite) {
