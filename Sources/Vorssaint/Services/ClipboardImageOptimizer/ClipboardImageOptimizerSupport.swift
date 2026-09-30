@@ -27,11 +27,56 @@ enum ClipboardImageOptimizerSupport {
 
     enum Source: Equatable {
         case bitmap(type: String)
+        /// A PNG, JPEG or TIFF file, written back as image data.
         case file(URL, uti: String)
+        /// A HEIC, WebP, AVIF or BMP file, turned into a JPEG or PNG file.
+        case convertedImage(URL, uti: String)
+        case video(URL)
+        case pdf(URL)
+
+        var usesOutputFile: Bool {
+            switch self {
+            case .bitmap, .file: return false
+            case .convertedImage, .video, .pdf: return true
+            }
+        }
     }
 
     enum SkipReason: Equatable {
-        case ownWrite, sensitive, multipleItems, notImage, otherRepresentations, filesDisabled, tooLarge
+        case ownWrite, sensitive, multipleItems, notImage, otherRepresentations, filesDisabled, tooLarge,
+             kindDisabled
+    }
+
+    /// Which kinds of copy the optimizer may touch.
+    struct Scope: Equatable {
+        var images: Bool
+        var imageFiles: Bool
+        var convertImages: Bool
+        var videos: Bool
+        var pdfs: Bool
+        /// Where optimized files live; a copy of one of them is never redone.
+        var outputRoot: URL?
+
+        static func fromDefaults(_ defaults: UserDefaults = .standard, outputRoot: URL?) -> Scope {
+            Scope(images: defaults.bool(forKey: DefaultsKey.clipboardOptimizerImages),
+                  imageFiles: defaults.bool(forKey: DefaultsKey.clipboardImageOptimizerIncludeFiles),
+                  convertImages: defaults.bool(forKey: DefaultsKey.clipboardOptimizerConvertImages),
+                  videos: defaults.bool(forKey: DefaultsKey.clipboardOptimizerVideos),
+                  pdfs: defaults.bool(forKey: DefaultsKey.clipboardOptimizerPDFs),
+                  outputRoot: outputRoot)
+        }
+
+        /// Whether the poll needs the file URLs at all.
+        var readsFiles: Bool { (images && imageFiles) || videos || pdfs }
+
+        func allows(_ source: Source) -> Bool {
+            switch source {
+            case .bitmap, .file: return images
+            case .convertedImage: return images && convertImages
+            case .video: return videos
+            case .pdf: return pdfs
+            }
+        }
     }
 
     enum Eligibility: Equatable {
@@ -71,20 +116,52 @@ enum ClipboardImageOptimizerSupport {
         (bytes ?? 0) > maxBytes || (pixels ?? 0) > maxPixels
     }
 
+    /// The image-only entry point from before videos and PDFs.
     static func eligibility(_ snapshot: PasteboardImageSnapshot,
                             lastOwnWrite: Int?,
                             includeFiles: Bool) -> Eligibility {
+        eligibility(snapshot, lastOwnWrite: lastOwnWrite,
+                    scope: Scope(images: true, imageFiles: includeFiles, convertImages: false,
+                                 videos: false, pdfs: false, outputRoot: nil))
+    }
+
+    static func eligibility(_ snapshot: PasteboardImageSnapshot,
+                            lastOwnWrite: Int?,
+                            scope: Scope) -> Eligibility {
         if let lastOwnWrite, lastOwnWrite == snapshot.changeCount { return .skip(.ownWrite) }
         if snapshot.types.contains(where: untouchableTypes.contains) { return .skip(.sensitive) }
         if snapshot.itemCount > 1 || snapshot.fileURLs.count > 1 { return .skip(.multipleItems) }
         guard snapshot.itemCount == 1, !snapshot.types.isEmpty else { return .skip(.notImage) }
 
         if let url = snapshot.fileURLs.first {
-            guard includeFiles else { return .skip(.filesDisabled) }
-            guard let uti = fileUTI(for: url) else { return .skip(.notImage) }
-            return .eligible(.file(url, uti: uti))
+            if let root = scope.outputRoot, ClipboardOptimizerFileSupport.isOwnOutput(url, root: root) {
+                return .skip(.ownWrite)
+            }
+            let source: Source
+            if let uti = fileUTI(for: url) {
+                source = .file(url, uti: uti)
+            } else if let uti = ClipboardOptimizerFileSupport.convertibleImageUTI(for: url) {
+                source = .convertedImage(url, uti: uti)
+            } else if ClipboardOptimizerFileSupport.isVideo(url) {
+                source = .video(url)
+            } else if ClipboardOptimizerFileSupport.isPDF(url) {
+                source = .pdf(url)
+            } else {
+                return .skip(.notImage)
+            }
+            switch source {
+            case .file, .convertedImage:
+                guard scope.images else { return .skip(.kindDisabled) }
+                guard scope.imageFiles else { return .skip(.filesDisabled) }
+            default:
+                break
+            }
+            return scope.allows(source) ? .eligible(source) : .skip(.kindDisabled)
         }
 
+        guard scope.images else {
+            return Set(snapshot.types).isDisjoint(with: bitmapTypes) ? .skip(.notImage) : .skip(.kindDisabled)
+        }
         let types = Set(snapshot.types)
         guard !types.isDisjoint(with: bitmapTypes) else { return .skip(.notImage) }
         guard types.isSubset(of: bitmapTypes) else { return .skip(.otherRepresentations) }
@@ -151,9 +228,9 @@ enum ClipboardImageOptimizerSupport {
 /// The last gate before a result is written back: the feature is still on,
 /// nothing reconfigured it meanwhile, and nobody copied something newer.
 enum OptimizationCommit {
-    static func accepts(generation: Int, current: Int, enabled: Bool,
+    static func accepts(generation: Int, current: Int, enabled: Bool, kindEnabled: Bool = true,
                         pasteboardChangeCount: Int, snapshotChangeCount: Int) -> Bool {
-        generation == current && enabled && pasteboardChangeCount == snapshotChangeCount
+        generation == current && enabled && kindEnabled && pasteboardChangeCount == snapshotChangeCount
     }
 }
 
