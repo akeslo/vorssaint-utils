@@ -60,11 +60,9 @@ enum ClipboardOptimizerFileTests {
         check(snapshot(heic), .eligible(.convertedImage(heic, uti: "public.heic")), "a copied HEIC is converted")
         for ext in ["webp", "avif", "bmp", "heif"] {
             let url = URL(fileURLWithPath: "/Users/me/x.\(ext)")
-            if case .eligible(.convertedImage) = Support.eligibility(snapshot(url), lastOwnWrite: nil, scope: all) {
-                suite.expect(true, "")
-            } else {
-                suite.expect(false, "a copied \(ext) is converted")
-            }
+            let result = Support.eligibility(snapshot(url), lastOwnWrite: nil, scope: all)
+            suite.expect(result == .eligible(.convertedImage(url, uti: Files.convertibleImageUTIs[ext]!)),
+                         "a copied \(ext) is converted: \(result)")
         }
         for ext in ["mkv", "webm", "avi", "mpg", "mpeg", "gif", "jxl", "txt"] {
             check(snapshot(URL(fileURLWithPath: "/Users/me/x.\(ext)")), .skip(.notImage),
@@ -133,6 +131,9 @@ enum ClipboardOptimizerFileTests {
         suite.expect(video.maxMB == Files.VideoOptions.defaultMaxMB, "an unknown size cap falls back")
         suite.expect(video.maxMinutes == Files.VideoOptions.defaultMaxMinutes, "an unknown duration cap falls back")
         suite.expect(video.removeAudio, "remove audio is kept")
+        suite.expect(Files.VideoOptions.sanitized(codec: "hevc", quality: 0.6, maxDimension: 1280, removeAudio: false,
+                                                  maxMB: 500, maxMinutes: 15).maxDimension == 1920,
+                     "HEVC has no 1280 preset, so that choice falls back")
         let h264 = Files.VideoOptions.sanitized(codec: "h264", quality: 0.5, maxDimension: 1280,
                                                 removeAudio: false, maxMB: 2000, maxMinutes: 60)
         suite.expect(h264 == Files.VideoOptions(codec: .h264, quality: 0.5, maxDimension: 1280,
@@ -412,9 +413,22 @@ enum ClipboardOptimizerFileTests {
         suite.expect(result.map(\.filePaths) == [[], original], "an older copy of the same file is left alone")
         result = ClipboardHistoryRewrite.apply([older], from: original, to: optimized)
         suite.expect(result == [older], "with no entry for the original, history is left unchanged")
+
+        let repointed = ClipboardHistoryRewrite.apply([recent, older], from: original, to: optimized)
+        let pinnedCopy = ClipboardHistoryEntry(text: "", pinnedAt: Date(), kind: .files, filePaths: optimized)
+        result = ClipboardHistoryRewrite.restore(repointed + [pinnedCopy], originals: [optimized[0]: original[0]])
+        suite.expect(result.map(\.filePaths) == [original, [], optimized] && result.first?.id == recent.id,
+                     "clearing a copy points its unpinned entry back at the original")
     }
 
     static func commit(_ suite: TestSuite) {
+        func accepts(generation: Int = 2, enabled: Bool = true, pasteboard: Int = 5) -> Bool {
+            OptimizationCommit.accepts(generation: generation, current: 2, enabled: enabled, kindEnabled: true,
+                                       pasteboardChangeCount: pasteboard, snapshotChangeCount: 5)
+        }
+        suite.expect(!accepts(generation: 1), "a result from before a restart is dropped")
+        suite.expect(!accepts(enabled: false), "a result after the feature was turned off is dropped")
+        suite.expect(!accepts(pasteboard: 6), "a result for a clipboard that changed is dropped")
         suite.expect(OptimizationCommit.accepts(generation: 2, current: 2, enabled: true, kindEnabled: true,
                                                 pasteboardChangeCount: 5, snapshotChangeCount: 5),
                      "an unchanged clipboard takes the result")

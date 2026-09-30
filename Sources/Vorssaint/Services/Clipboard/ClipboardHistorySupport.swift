@@ -749,4 +749,16 @@ enum ClipboardHistoryRewrite {
         result.removeAll { $0.id != source.id && !$0.isPinned && $0.kind == .files && $0.filePaths == optimized }
         return result
     }
+
+    /// Stored copies are being deleted: unpinned entries that pointed at one
+    /// go back to the file originally copied. A pinned copy stays pinned.
+    static func restore(_ entries: [ClipboardHistoryEntry],
+                        originals: [String: String]) -> [ClipboardHistoryEntry] {
+        entries.map { entry in
+            guard !entry.isPinned, entry.kind == .files,
+                  entry.filePaths.contains(where: { originals[$0] != nil }) else { return entry }
+            return ClipboardHistoryEntry(id: entry.id, text: entry.text, copiedAt: entry.copiedAt, pinnedAt: nil,
+                                         kind: .files, filePaths: entry.filePaths.map { originals[$0] ?? $0 })
+        }
+    }
 }

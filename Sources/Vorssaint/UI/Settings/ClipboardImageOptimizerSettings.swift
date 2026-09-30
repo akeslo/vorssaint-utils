@@ -98,9 +98,14 @@ struct ClipboardImageOptimizerSettings: View {
                 Text(text.codecHEVC).tag(MediaVideoCodec.hevc.rawValue)
                 Text(text.codecH264).tag(MediaVideoCodec.h264.rawValue)
             }
+            .onChange(of: videoCodec) { _, _ in
+                if !videoDimensionChoices.contains(videoMaxDimension) {
+                    videoMaxDimension = Files.VideoOptions.defaultMaxDimension
+                }
+            }
             slider(text.videoQuality, value: $videoQuality)
             Picker(text.videoMaxDimension, selection: $videoMaxDimension) {
-                ForEach(Files.VideoOptions.maxDimensionChoices, id: \.self) { value in
+                ForEach(videoDimensionChoices, id: \.self) { value in
                     Text(value == 0 ? text.videoMaxDimensionKeep : "\(value) px").tag(value)
                 }
             }
@@ -114,6 +119,11 @@ struct ClipboardImageOptimizerSettings: View {
                 }
             }
         }
+    }
+
+    /// avconvert has no HEVC preset below 1080p.
+    private var videoDimensionChoices: [Int] {
+        Files.VideoOptions.maxDimensionChoices(codec: MediaVideoCodec(rawValue: videoCodec) ?? .hevc)
     }
 
     @ViewBuilder private var pdfControls: some View {

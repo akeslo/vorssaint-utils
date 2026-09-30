@@ -142,6 +142,16 @@ final class ClipboardHistoryService: ObservableObject {
         save()
     }
 
+    /// Stored copies were deleted; entries that pointed at them go back to
+    /// the files originally copied.
+    func restoreOriginals(_ originals: [String: String]) {
+        guard !originals.isEmpty else { return }
+        let updated = ClipboardHistoryRewrite.restore(entries, originals: originals)
+        guard updated != entries else { return }
+        entries = updated
+        save()
+    }
+
     /// File paths history still offers to paste, pinned apart from the rest,
     /// so the optimizer never deletes a copy someone pinned.
     var referencedFilePaths: (pinned: Set<String>, recent: Set<String>) {
