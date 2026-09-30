@@ -404,6 +404,9 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Clipboard/ClipboardHistorySupport.swift
         Sources/Vorssaint/Core/ColorValue.swift
         Sources/Vorssaint/Services/Clipboard/ClipboardAutoClearSupport.swift
+        Sources/Vorssaint/Services/ClipboardImageOptimizer/ClipboardImageOptimizerSupport.swift
+        Sources/Vorssaint/Services/Media/MediaImageEncoder.swift
+        Sources/Vorssaint/Core/ClipboardImageOptimizerStrings.swift
         Sources/Vorssaint/Services/AutoQuit/AutoQuitSupport.swift
         Sources/Vorssaint/Services/Shelf/ShelfSupport.swift
         Sources/Vorssaint/Services/Shelf/ShelfFilePromiseTransfer.swift

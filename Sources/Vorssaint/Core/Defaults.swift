@@ -546,6 +546,12 @@ enum DefaultsKey {
     static let clipboardAutoClearOnSleep = "clipboardAutoClearOnSleep"
     static let clipboardAutoClearOnDisplaySleep = "clipboardAutoClearOnDisplaySleep"
     static let clipboardAutoClearOnScreenLock = "clipboardAutoClearOnScreenLock"
+    static let clipboardImageOptimizerEnabled = "clipboardImageOptimizerEnabled"
+    static let clipboardImageOptimizerFormat = "clipboardImageOptimizerFormat" // keep | jpeg
+    static let clipboardImageOptimizerQuality = "clipboardImageOptimizerQuality" // 0.1...1, JPEG only
+    static let clipboardImageOptimizerMaxDimension = "clipboardImageOptimizerMaxDimension" // long edge in pixels, 0 = off
+    static let clipboardImageOptimizerHalveRetina = "clipboardImageOptimizerHalveRetina"
+    static let clipboardImageOptimizerIncludeFiles = "clipboardImageOptimizerIncludeFiles"
 
     static let windowPreviewExcludedApps = "windowPreviewExcludedApps" // pause Dock Preview thumbnail capture while these apps are in front (once shared with the app switcher)
     static let switcherPreviewExcludedApps = "switcherPreviewExcludedApps" // pause app switcher thumbnail capture while these apps are in front
@@ -1641,6 +1647,12 @@ enum Defaults {
         DefaultsKey.clipboardAutoClearOnSleep: false,
         DefaultsKey.clipboardAutoClearOnDisplaySleep: false,
         DefaultsKey.clipboardAutoClearOnScreenLock: false,
+        DefaultsKey.clipboardImageOptimizerEnabled: false,
+        DefaultsKey.clipboardImageOptimizerFormat: "keep",
+        DefaultsKey.clipboardImageOptimizerQuality: 0.8,
+        DefaultsKey.clipboardImageOptimizerMaxDimension: 0,
+        DefaultsKey.clipboardImageOptimizerHalveRetina: false,
+        DefaultsKey.clipboardImageOptimizerIncludeFiles: false,
         DefaultsKey.finderCutPasteShowHUD: true,
         DefaultsKey.finderPasteImageAsFile: false,
         DefaultsKey.windowPreviewExcludedApps: [String](),
