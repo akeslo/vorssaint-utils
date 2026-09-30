@@ -96,6 +96,11 @@ enum MediaFailure: Equatable {
     case gifTooLong(maxSeconds: Int)
     case targetTooSmall
     case watermarkUnavailable
+    case notDownloaded
+    case notWritable
+    case notEnoughSpace
+    case pdfProtected(MediaPDFCompressor.Protection)
+    case notSmaller(originalBytes: Int64, outputBytes: Int64)
     case cancelled
     case failed(String)
 }
@@ -231,6 +236,13 @@ final class MediaService: ObservableObject {
     func extractText(inputURL: URL, outputURL: URL?, options: MediaTextOptions) {
         run(.textExtractor) { [weak self] id, token in
             try self?.extractTextWork(inputURL: inputURL, outputURL: outputURL, options: options,
+                                      operationID: id, token: token)
+        }
+    }
+
+    func compressPDF(inputURL: URL, outputURL: URL, options: MediaPDFOptions) {
+        run(.pdfCompressor) { [weak self] id, token in
+            try self?.compressPDFWork(inputURL: inputURL, outputURL: outputURL, options: options,
                                       operationID: id, token: token)
         }
     }
@@ -721,6 +733,70 @@ final class MediaService: ObservableObject {
                                  elapsed: Date().timeIntervalSince(started),
                                  text: text)
         publish(.completed(result), operationID: operationID)
+    }
+
+    /// Rewrites a PDF through the shared engine into a staged copy next to
+    /// the output, and installs it only when it is worth keeping. PDFKit's
+    /// write cannot be interrupted: a cancel shows at once, and the finished
+    /// write is discarded because the commit refuses a cancelled operation.
+    private func compressPDFWork(inputURL: URL, outputURL: URL, options: MediaPDFOptions,
+                                 operationID: UUID, token: MediaCancellationToken) throws {
+        let started = Date()
+        // Opening a file whose contents live in iCloud would download it.
+        guard ClipboardOptimizerFileSupport.isAvailableLocally(inputURL) else {
+            throw MediaFailureBox(.notDownloaded)
+        }
+        let originalBytes = fileSize(inputURL)
+        let stagedOutputURL: URL
+        do {
+            stagedOutputURL = try stagedOutput(inputURL: inputURL, outputURL: outputURL)
+        } catch let failure as MediaFailureBox {
+            throw failure
+        } catch {
+            throw MediaFailureBox(.notWritable)
+        }
+        defer { MediaSupport.discardStagedOutput(stagedOutputURL) }
+        let free = (try? stagedOutputURL.deletingLastPathComponent()
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+            .volumeAvailableCapacityForImportantUsage
+        guard ClipboardOptimizerFileSupport.hasRoom(freeBytes: free, sourceBytes: originalBytes) else {
+            throw MediaFailureBox(.notEnoughSpace)
+        }
+        publish(.running(progress: 0.1, message: "pdf"), operationID: operationID)
+        do {
+            try MediaPDFCompressor.rewrite(source: inputURL, to: stagedOutputURL, settings: options.settings,
+                                           filterName: "Vorssaint PDF compressor",
+                                           scratchDirectory: stagedOutputURL.deletingLastPathComponent(),
+                                           isCancelled: { token.isCancelled })
+        } catch let failure as MediaPDFCompressor.Failure {
+            throw MediaFailureBox(Self.mediaFailure(for: failure))
+        }
+        try checkCancellation(token)
+        publish(.running(progress: 0.9, message: "pdf"), operationID: operationID)
+        let outputBytes = fileSize(stagedOutputURL)
+        guard ClipboardImageOptimizerSupport.shouldReplace(originalBytes: Int(clamping: originalBytes),
+                                                           encodedBytes: Int(clamping: outputBytes)) else {
+            throw MediaFailureBox(.notSmaller(originalBytes: originalBytes, outputBytes: outputBytes))
+        }
+        try commit(stagedOutputURL, at: outputURL, operationID: operationID, token: token)
+        MediaSupport.makeVisibleIfNeeded(outputURL)
+        let result = MediaResult(tool: .pdfCompressor,
+                                 inputURL: inputURL,
+                                 outputURL: outputURL,
+                                 originalBytes: originalBytes,
+                                 outputBytes: fileSize(outputURL),
+                                 elapsed: Date().timeIntervalSince(started),
+                                 text: nil)
+        publish(.completed(result), operationID: operationID)
+    }
+
+    static func mediaFailure(for failure: MediaPDFCompressor.Failure) -> MediaFailure {
+        switch failure {
+        case .unreadable, .empty: return .unsupported
+        case let .protected(protection): return .pdfProtected(protection)
+        case .cancelled: return .cancelled
+        case .filter, .incompleteOutput: return .failed("")
+        }
     }
 
     /// A dropped file that does not fit the selected tool: surface the same
