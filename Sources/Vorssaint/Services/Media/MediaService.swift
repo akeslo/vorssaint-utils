@@ -320,58 +320,26 @@ final class MediaService: ObservableObject {
                               token: MediaCancellationToken) throws {
         let outSize = MediaSupport.scaledVideoSize(source: displaySize,
                                                    maxDimension: options.maxDimension)
-        let preset = avconvertPreset(codec: options.codec,
-                                     maxDimension: max(Int(outSize.width), Int(outSize.height)),
-                                     quality: options.quality)
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/avconvert")
-        process.arguments = [
-            "--source", inputURL.path,
-            "--preset", preset,
-            "--output", stagedOutputURL.path,
-            "--replace",
-            "--progress",
-            // Deliberately not the reader's region: these are arguments for
-            // a tool that reads a decimal point, and a comma would break the
-            // trim in every country that writes numbers that way.
-            "--start", String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), trim.start),
-            "--duration", String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), trim.duration),
-        ]
-        if options.quality >= 0.82 {
-            process.arguments?.append("--multiPass")
-        }
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        var log = ""
-        let logLock = NSLock()
-        pipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let chunk = String(data: data, encoding: .utf8) else { return }
-            logLock.lock()
-            log.append(chunk)
-            if log.count > 8_000 { log.removeFirst(log.count - 8_000) }
-            logLock.unlock()
-        }
-        defer {
-            pipe.fileHandleForReading.readabilityHandler = nil
-            if process.isRunning { process.terminate() }
-        }
-        try launch(process: process, operationID: operationID, token: token)
-        while process.isRunning {
-            try checkCancellation(token)
-            let elapsed = Date().timeIntervalSince(started)
-            let estimate = max(1, trim.duration * 0.75)
-            publish(.running(progress: min(0.95, elapsed / estimate), message: "video"), operationID: operationID)
-            Thread.sleep(forTimeInterval: 0.08)
-        }
-        if token.isCancelled {
+        let preset = MediaVideoEncoder.avconvertPreset(codec: options.codec,
+                                                       maxDimension: max(Int(outSize.width), Int(outSize.height)),
+                                                       quality: options.quality)
+        let arguments = MediaVideoEncoder.avconvertArguments(
+            input: inputURL, output: stagedOutputURL, preset: preset, trim: trim,
+            multiPass: MediaVideoEncoder.wantsMultiPass(quality: options.quality))
+        do {
+            try MediaVideoEncoder.run(
+                arguments: arguments,
+                launch: { try launch(process: $0, operationID: operationID, token: token) },
+                isCancelled: { token.isCancelled },
+                tick: {
+                    let elapsed = Date().timeIntervalSince(started)
+                    let estimate = max(1, trim.duration * 0.75)
+                    publish(.running(progress: min(0.95, elapsed / estimate), message: "video"),
+                            operationID: operationID)
+                })
+        } catch MediaVideoEncoder.RunError.cancelled {
             throw MediaFailureBox(.cancelled)
-        }
-        guard process.terminationStatus == 0 else {
-            logLock.lock()
-            let message = log.trimmingCharacters(in: .whitespacesAndNewlines)
-            logLock.unlock()
+        } catch MediaVideoEncoder.RunError.failed(let message) {
             throw MediaFailureBox(.failed(message.isEmpty ? "avconvert failed." : message))
         }
     }
@@ -979,26 +947,6 @@ final class MediaService: ObservableObject {
         case .bottomRight:
             return NSPoint(x: maxX, y: margin)
         }
-    }
-
-    private func avconvertPreset(codec: MediaVideoCodec, maxDimension: Int, quality: Double) -> String {
-        let quality = MediaSupport.sanitizedQuality(quality)
-        if quality < 0.4 {
-            return "PresetLowQuality"
-        }
-        if codec == .hevc {
-            if quality >= 0.82 { return "PresetHEVCHighestQuality" }
-            if maxDimension <= 1920 { return "PresetHEVC1920x1080" }
-            if maxDimension <= 3840 { return "PresetHEVC3840x2160" }
-            return "PresetHEVCHighestQuality"
-        }
-        if quality >= 0.82 { return "PresetHighestQuality" }
-        if quality < 0.58 { return "PresetMediumQuality" }
-        if maxDimension <= 640 { return "Preset640x480" }
-        if maxDimension <= 960 { return "Preset960x540" }
-        if maxDimension <= 1280 { return "Preset1280x720" }
-        if maxDimension <= 1920 { return "Preset1920x1080" }
-        return "PresetHighestQuality"
     }
 
     private func seconds(_ value: Double) -> CMTime {
