@@ -410,8 +410,6 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Media/MediaImageEncoder.swift
         Sources/Vorssaint/Services/Media/MediaVideoEncoder.swift
         Sources/Vorssaint/Core/ClipboardImageOptimizerStrings.swift
-        Sources/Vorssaint/Services/FileOptimizer/FileOptimizerSupport.swift
-        Sources/Vorssaint/Core/FileOptimizerStrings.swift
         Sources/Vorssaint/Services/AutoQuit/AutoQuitSupport.swift
         Sources/Vorssaint/Services/Shelf/ShelfSupport.swift
         Sources/Vorssaint/Services/Shelf/ShelfFilePromiseTransfer.swift

@@ -30,8 +30,8 @@ enum ClipboardOptimizerStore {
         return job
     }
 
-    static func jobs(in root: URL? = rootURL) -> [Files.StoredJob] {
-        guard let root,
+    static func jobs() -> [Files.StoredJob] {
+        guard let root = rootURL,
               let dirs = try? FileManager.default.contentsOfDirectory(
                 at: root, includingPropertiesForKeys: [.creationDateKey, .isDirectoryKey],
                 options: [.skipsHiddenFiles])
@@ -106,9 +106,8 @@ enum ClipboardOptimizerStore {
         })
     }
 
-    /// The File optimizer keeps its own root and passes it here.
-    static func killOrphanedEncoders(in root: URL? = rootURL) {
-        for job in jobs(in: root) {
+    static func killOrphanedEncoders() {
+        for job in jobs() {
             let file = job.url.appendingPathComponent(pidFileName)
             guard let text = try? String(contentsOf: file, encoding: .utf8),
                   let pid = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)), pid > 0 else { continue }
@@ -206,8 +205,7 @@ enum ClipboardFileOptimizer {
 
     static func optimizeVideo(_ source: URL, options: Files.VideoOptions, job: URL,
                               isCancelled: @escaping () -> Bool,
-                              launched: @escaping (Process) -> Void,
-                              progress: ((Double) -> Void)? = nil) throws -> Result {
+                              launched: @escaping (Process) -> Void) throws -> Result {
         let original = try preflight(source, capMB: options.maxMB, job: job)
         guard let facts = videoFacts(source), facts.hasVideo else { throw Failure.skipped("no video") }
         guard Files.durationGate(seconds: facts.duration, capMinutes: options.maxMinutes) == .ok else {
@@ -220,7 +218,6 @@ enum ClipboardFileOptimizer {
         let target = options.maxDimension > 0 ? min(options.maxDimension, longEdge) : longEdge
         let preset = MediaVideoEncoder.avconvertPreset(codec: options.codec, maxDimension: target,
                                                        quality: options.quality)
-        let started = Date()
         do {
             try MediaVideoEncoder.run(
                 arguments: MediaVideoEncoder.avconvertArguments(
@@ -232,11 +229,7 @@ enum ClipboardFileOptimizer {
                     launched(process)
                     ClipboardOptimizerStore.recordProcess(process, in: job)
                 },
-                isCancelled: isCancelled,
-                tick: {
-                    progress?(FileOptimizerSupport.estimatedVideoProgress(
-                        elapsed: Date().timeIntervalSince(started), duration: facts.duration))
-                })
+                isCancelled: isCancelled, tick: {})
         } catch MediaVideoEncoder.RunError.cancelled {
             throw Failure.cancelled
         } catch MediaVideoEncoder.RunError.failed(let message) {
@@ -331,38 +324,6 @@ enum ClipboardFileOptimizer {
         guard worthKeeping(original: original, output: size) else { throw Failure.skipped("not smaller") }
         return Result(url: output, originalBytes: original,
                       outputBytes: try finish(partial: partial, output: output, source: source))
-    }
-
-    // MARK: Image files
-
-    /// A PNG, JPEG or TIFF file re-encoded the way a copied one is, written
-    /// as a file. Nil output from the encoder is told apart, so a skip says
-    /// why.
-    static func optimizeImageFile(_ source: URL, sourceType: String,
-                                  options: ClipboardImageOptimizerSupport.Options, job: URL,
-                                  isCancelled: () -> Bool) throws -> Result {
-        let original = try preflight(source, capMB: ClipboardImageOptimizerSupport.maxBytes / (1024 * 1024),
-                                     job: job)
-        guard let data = try? Data(contentsOf: source), !isCancelled() else {
-            throw isCancelled() ? Failure.cancelled : Failure.skipped("unreadable")
-        }
-        guard let info = MediaImageEncoder.imageInfo(data) else { throw Failure.skipped("unreadable") }
-        guard !ClipboardImageOptimizerSupport.isTooLarge(bytes: data.count, pixels: info.width * info.height)
-        else { throw Failure.skipped("size") }
-        guard !ClipboardImageOptimizerEncoding.leavesAlone(data) else { throw Failure.skipped("left alone") }
-        guard let output = ClipboardImageOptimizerEncoding.optimize(data: data, sourceType: sourceType,
-                                                                    options: options, isCancelled: isCancelled)
-        else { throw isCancelled() ? Failure.cancelled : Failure.skipped("not smaller") }
-        let url = Files.outputURL(root: job.deletingLastPathComponent(),
-                                  id: UUID(uuidString: job.lastPathComponent) ?? UUID(), source: source,
-                                  outputExtension: FileOptimizerSupport.imageExtension(outputType: output.type,
-                                                                                       source: source))
-        let partial = Files.partialURL(for: url)
-        guard PrivateFileStore.write(output.data, to: partial),
-              CGImageSourceCreateWithURL(partial as CFURL, nil).map(CGImageSourceGetCount) ?? 0 > 0
-        else { throw Failure.failed("incomplete output") }
-        return Result(url: url, originalBytes: original,
-                      outputBytes: try finish(partial: partial, output: url, source: source))
     }
 
     // MARK: Converted images
