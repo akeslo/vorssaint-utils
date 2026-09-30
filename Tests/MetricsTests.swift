@@ -27,6 +27,7 @@ struct MetricsTests {
                 ClipboardFeatureTests.run(suite)
                 PastePlainTests.run(suite)
             }),
+            ("clipboard-image-optimizer", { ClipboardImageOptimizerTests.run(suite) }),
             ("pointer-input", {
                 PointerOnDisplayContract.run(suite)
                 PointerInputFeatureTests.run(suite)
