@@ -31,6 +31,11 @@ enum ClipboardOptimizerFileSupport {
     struct VideoOptions: Equatable {
         static let qualityRange = 0.1...1.0
         static let maxDimensionChoices = [0, 1280, 1920, 3840]
+
+        /// avconvert's HEVC presets start at 1080p, so 1280 is H.264 only.
+        static func maxDimensionChoices(codec: MediaVideoCodec) -> [Int] {
+            codec == .hevc ? maxDimensionChoices.filter { $0 != 1280 } : maxDimensionChoices
+        }
         static let maxMBChoices = [100, 250, 500, 1000, 2000]
         static let maxMinutesChoices = [1, 5, 15, 30, 60]
         static let defaultQuality = 0.6
@@ -49,10 +54,12 @@ enum ClipboardOptimizerFileSupport {
         static func sanitized(codec: String?, quality: Double?, maxDimension: Int?, removeAudio: Bool,
                               maxMB: Int?, maxMinutes: Int?) -> VideoOptions {
             let quality = quality.flatMap { $0.isFinite ? $0 : nil } ?? defaultQuality
+            let codec = codec.flatMap(MediaVideoCodec.init(rawValue:)) ?? .hevc
             return VideoOptions(
-                codec: codec.flatMap(MediaVideoCodec.init(rawValue:)) ?? .hevc,
+                codec: codec,
                 quality: min(qualityRange.upperBound, max(qualityRange.lowerBound, quality)),
-                maxDimension: pick(maxDimension, from: maxDimensionChoices, fallback: defaultMaxDimension),
+                maxDimension: pick(maxDimension, from: maxDimensionChoices(codec: codec),
+                                   fallback: defaultMaxDimension),
                 removeAudio: removeAudio,
                 maxMB: pick(maxMB, from: maxMBChoices, fallback: defaultMaxMB),
                 maxMinutes: pick(maxMinutes, from: maxMinutesChoices, fallback: defaultMaxMinutes))

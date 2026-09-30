@@ -16,11 +16,18 @@ enum ClipboardOptimizerStore {
         PrivateFileStore.containerURL?.appendingPathComponent("ClipboardOptimizer", isDirectory: true)
     }
 
-    /// A fresh `<root>/<uuid>` folder for one job.
-    static func makeJobDirectory() -> URL? {
+    static let sourceFileName = ".source"
+
+    /// A fresh `<root>/<uuid>` folder for one job. It remembers the copied
+    /// file, so history can point back at it once the copy is deleted.
+    static func makeJobDirectory(source: URL) -> URL? {
         guard let root = rootURL else { return nil }
         let job = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        return PrivateFileStore.createDirectory(at: job) ? job : nil
+        guard PrivateFileStore.createDirectory(at: job),
+              PrivateFileStore.write(Data(source.standardizedFileURL.path.utf8),
+                                     to: job.appendingPathComponent(sourceFileName))
+        else { return nil }
+        return job
     }
 
     static func jobs() -> [Files.StoredJob] {
@@ -50,20 +57,33 @@ enum ClipboardOptimizerStore {
         return (all.reduce(0) { $0 + $1.bytes }, all.filter { kept.contains($0.url) }.reduce(0) { $0 + $1.bytes })
     }
 
-    static func sweep(protected: Set<String>, referenced: Set<String>, now: Date = Date()) {
+    /// Each returns the removed copies mapped to the files they came from.
+    @discardableResult
+    static func sweep(protected: Set<String>, referenced: Set<String>, now: Date = Date()) -> [String: String] {
         remove(Files.sweepCandidates(jobs(), now: now, protected: protected, referenced: referenced,
                                      policy: Files.SweepPolicy()))
     }
 
-    static func clear(protected: Set<String>) {
+    @discardableResult
+    static func clear(protected: Set<String>) -> [String: String] {
         remove(Files.clearCandidates(jobs(), protected: protected))
     }
 
-    static func remove(_ urls: [URL]) {
-        guard let root = rootURL else { return }
+    @discardableResult
+    static func remove(_ urls: [URL]) -> [String: String] {
+        guard let root = rootURL else { return [:] }
+        var originals: [String: String] = [:]
         for url in urls where Files.isOwnOutput(url.appendingPathComponent("x"), root: root) {
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
+            if let source = try? String(contentsOf: url.appendingPathComponent(sourceFileName), encoding: .utf8),
+               FileManager.default.fileExists(atPath: source) {
+                for name in names where !name.hasPrefix(".") {
+                    originals[url.appendingPathComponent(name).standardizedFileURL.path] = source
+                }
+            }
             try? FileManager.default.removeItem(at: url)
         }
+        return originals
     }
 
     // MARK: Encoder processes
@@ -77,6 +97,15 @@ enum ClipboardOptimizerStore {
 
     /// After a crash an encoder can outlive the app. Kill it only if that pid
     /// still runs avconvert, since pids are reused.
+    /// A job that never produced its final file (quit or crash mid-encode)
+    /// holds only hidden partial files. Called at start, before any new job.
+    static func removeIncompleteJobs() {
+        _ = remove(jobs().map(\.url).filter { dir in
+            ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+                .allSatisfy { $0.hasPrefix(".") }
+        })
+    }
+
     static func killOrphanedEncoders() {
         for job in jobs() {
             let file = job.url.appendingPathComponent(pidFileName)
@@ -225,7 +254,7 @@ enum ClipboardFileOptimizer {
         let asset = AVURLAsset(url: url)
         let composition = AVMutableComposition()
         let semaphore = DispatchSemaphore(value: 0)
-        var inserted = false
+        let inserted = InsertBox()
         Task {
             defer { semaphore.signal() }
             guard let (duration, tracks) = try? await asset.load(.duration, .tracks),
@@ -236,10 +265,9 @@ enum ClipboardFileOptimizer {
                     != nil
             else { return }
             track.preferredTransform = (try? await video.load(.preferredTransform)) ?? .identity
-            inserted = true
+            inserted.set()
         }
-        semaphore.wait()
-        guard inserted,
+        guard semaphore.wait(timeout: .now() + 30) == .success, inserted.value,
               let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough)
         else { throw Failure.failed("audio") }
         let silent = url.deletingLastPathComponent().appendingPathComponent(".silent." + url.pathExtension)
@@ -257,6 +285,13 @@ enum ClipboardFileOptimizer {
             throw isCancelled() ? Failure.cancelled : Failure.failed("audio")
         }
         _ = try FileManager.default.replaceItemAt(url, withItemAt: silent)
+    }
+
+    private final class InsertBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var done = false
+        func set() { lock.lock(); done = true; lock.unlock() }
+        var value: Bool { lock.lock(); defer { lock.unlock() }; return done }
     }
 
     // MARK: PDF
