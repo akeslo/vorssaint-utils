@@ -95,6 +95,11 @@ enum ClipboardOptimizerFileSupport {
                               maxMB: pick(maxMB, from: maxMBChoices, fallback: defaultMaxMB))
         }
 
+        /// The clipboard never converts to gray.
+        var settings: MediaPDFCompressor.Settings {
+            MediaPDFCompressor.Settings(dpi: dpi, quality: quality, grayscale: false)
+        }
+
         static func fromDefaults(_ defaults: UserDefaults = .standard) -> PDFOptions {
             sanitized(dpi: defaults.object(forKey: DefaultsKey.clipboardOptimizerPDFDPI) as? Int,
                       quality: defaults.object(forKey: DefaultsKey.clipboardOptimizerPDFQuality) as? Double,
@@ -107,28 +112,11 @@ enum ClipboardOptimizerFileSupport {
         return value
     }
 
-    /// A Quartz filter that resamples embedded images to `dpi` on the page
-    /// and stores them as JPEG. Text, links and form fields are left as they
-    /// are; only image streams change.
+    static let pdfFilterName = "Vorssaint clipboard optimizer"
+
+    /// The shared media PDF filter, in color, under the clipboard's name.
     static func pdfFilter(_ options: PDFOptions) -> [String: Any] {
-        [
-            "Domains": ["Applications": true, "Printing": true],
-            "FilterType": 1,
-            "Name": "Vorssaint clipboard optimizer",
-            "FilterData": [
-                "ColorSettings": [
-                    "ImageSettings": [
-                        "Compression Quality": options.quality,
-                        "ImageCompression": "ImageJPEGCompress",
-                        "ImageScaleSettings": [
-                            "ImageResolution": options.dpi,
-                            "ImageScaleInterpolate": true,
-                            "ImageSizeMin": 0,
-                        ] as [String: Any],
-                    ] as [String: Any],
-                ],
-            ],
-        ]
+        MediaPDFCompressor.filter(options.settings, name: pdfFilterName)
     }
 
     // MARK: Gates
@@ -182,77 +170,8 @@ enum ClipboardOptimizerFileSupport {
 
     // MARK: Documents and images that must stay as they are
 
-    /// What a rewrite could break in a PDF. Any of it leaves the file alone.
-    struct PDFTraits: Equatable {
-        var encrypted = false
-        var signed = false
-        var permissions = false
-        var tagged = false
-        var xfa = false
-        var embeddedFiles = false
-        var javaScript = false
-
-        var leavesAlone: Bool {
-            encrypted || signed || permissions || tagged || xfa || embeddedFiles || javaScript
-        }
-
-        static func read(_ document: CGPDFDocument) -> PDFTraits {
-            var traits = PDFTraits()
-            traits.encrypted = document.isEncrypted || !document.isUnlocked
-            guard let catalog = document.catalog else { return traits }
-            traits.permissions = has(catalog, "Perms")
-            traits.javaScript = has(catalog, "OpenAction") || has(catalog, "AA")
-            if let marks = dictionary(catalog, "MarkInfo") {
-                var marked = false
-                _ = CGPDFDictionaryGetBoolean(marks, "Marked", &marked)
-                traits.tagged = marked
-            }
-            traits.tagged = traits.tagged || has(catalog, "StructTreeRoot")
-            if let names = dictionary(catalog, "Names") {
-                traits.embeddedFiles = has(names, "EmbeddedFiles")
-                traits.javaScript = traits.javaScript || has(names, "JavaScript")
-            }
-            if let form = dictionary(catalog, "AcroForm") {
-                traits.xfa = has(form, "XFA")
-                var flags: CGPDFInteger = 0
-                if CGPDFDictionaryGetInteger(form, "SigFlags", &flags), flags != 0 { traits.signed = true }
-                var fields: CGPDFArrayRef?
-                if !traits.signed, CGPDFDictionaryGetArray(form, "Fields", &fields), let fields {
-                    traits.signed = containsSignature(fields, depth: 0)
-                }
-            }
-            return traits
-        }
-
-        private static func has(_ dictionary: CGPDFDictionaryRef, _ key: String) -> Bool {
-            var object: CGPDFObjectRef?
-            return CGPDFDictionaryGetObject(dictionary, key, &object)
-        }
-
-        private static func dictionary(_ parent: CGPDFDictionaryRef, _ key: String) -> CGPDFDictionaryRef? {
-            var child: CGPDFDictionaryRef?
-            return CGPDFDictionaryGetDictionary(parent, key, &child) ? child : nil
-        }
-
-        /// Signature fields can sit at any depth of the form's field tree.
-        private static func containsSignature(_ fields: CGPDFArrayRef, depth: Int) -> Bool {
-            guard depth < 8 else { return false }
-            for index in 0..<CGPDFArrayGetCount(fields) {
-                var field: CGPDFDictionaryRef?
-                guard CGPDFArrayGetDictionary(fields, index, &field), let field else { continue }
-                var type: UnsafePointer<Int8>?
-                if CGPDFDictionaryGetName(field, "FT", &type), let type, String(cString: type) == "Sig" {
-                    return true
-                }
-                var kids: CGPDFArrayRef?
-                if CGPDFDictionaryGetArray(field, "Kids", &kids), let kids,
-                   containsSignature(kids, depth: depth + 1) {
-                    return true
-                }
-            }
-            return false
-        }
-    }
+    /// What a rewrite could break in a PDF; shared with the media tools.
+    typealias PDFTraits = MediaPDFCompressor.Traits
 
     /// What a JPEG or 8-bit PNG would lose. Any of it leaves the image alone.
     struct ImageTraits: Equatable {
