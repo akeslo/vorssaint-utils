@@ -290,6 +290,7 @@ final class FeatureRuntime: ObservableObject {
         .urlCleaner: { URLCleanerService.shared.syncWithPreferences() },
         .diskImageInstaller: { DiskImageInstallerService.shared.syncWithPreferences() },
         .clipboardImageOptimizer: { ClipboardImageOptimizerService.shared.syncWithPreferences() },
+        .fileOptimizer: { FileOptimizerService.shared.syncWithAvailability() },
         .mixer: {
             PreciseVolumeRollerService.shared.syncWithPreferences()
             AppVolumeMixer.shared.syncWithPreferences()

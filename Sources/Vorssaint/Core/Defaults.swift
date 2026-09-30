@@ -565,6 +565,10 @@ enum DefaultsKey {
     static let clipboardOptimizerPDFDPI = "clipboardOptimizerPDFDPI"
     static let clipboardOptimizerPDFQuality = "clipboardOptimizerPDFQuality" // 0.1...1
     static let clipboardOptimizerPDFMaxMB = "clipboardOptimizerPDFMaxMB"
+    // The option keys above are shared with the File optimizer, whose page
+    // shows them; the names keep their clipboard prefix so nothing migrates.
+    static let fileOptimizerOutputMode = "fileOptimizerOutputMode" // besideOriginal | folder
+    static let fileOptimizerOutputFolder = "fileOptimizerOutputFolder" // path, this Mac only
 
     static let windowPreviewExcludedApps = "windowPreviewExcludedApps" // pause Dock Preview thumbnail capture while these apps are in front (once shared with the app switcher)
     static let switcherPreviewExcludedApps = "switcherPreviewExcludedApps" // pause app switcher thumbnail capture while these apps are in front
@@ -1679,6 +1683,8 @@ enum Defaults {
         DefaultsKey.clipboardOptimizerPDFDPI: 150,
         DefaultsKey.clipboardOptimizerPDFQuality: 0.7,
         DefaultsKey.clipboardOptimizerPDFMaxMB: 100,
+        DefaultsKey.fileOptimizerOutputMode: "besideOriginal",
+        DefaultsKey.fileOptimizerOutputFolder: "",
         DefaultsKey.finderCutPasteShowHUD: true,
         DefaultsKey.finderPasteImageAsFile: false,
         DefaultsKey.windowPreviewExcludedApps: [String](),

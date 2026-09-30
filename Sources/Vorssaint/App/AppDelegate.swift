@@ -284,6 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         ProcessUsageService.shared.stopNetworkMonitoring(force: true)
         URLCleanerService.shared.stop()
         ClipboardImageOptimizerService.shared.stop()
+        FileOptimizerService.shared.stop()
         FocusFollowsMouseService.shared.stop()
         WindowMaximizer.shared.stop()
         WindowLayoutService.shared.suspend()
