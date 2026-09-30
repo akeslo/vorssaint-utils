@@ -35,6 +35,14 @@ enum MediaPDFCompressorTests {
         suite.expect(MediaPDFOptions(dpi: 7, quality: 9, grayscale: true).settings
                      == Engine.Settings(dpi: Engine.Settings.defaultDPI, quality: 1, grayscale: true),
                      "stored options are sanitized before use")
+        // A bare % in a format string is read as a specifier: "5% smaller"
+        // made "% s" consume a Swift string as a C string and crash.
+        for language in AppLanguage.allCases {
+            let format = MediaPDFStrings.localized(language).notSmallerFormat
+            let rest = format.replacingOccurrences(of: "%%", with: "").replacingOccurrences(of: "%@", with: "")
+            suite.expect(!rest.contains("%") && format.components(separatedBy: "%@").count == 3,
+                         "\(language) not-smaller message has exactly two %@ and no bare %")
+        }
         for key in [DefaultsKey.mediaPDFDPI, DefaultsKey.mediaPDFQuality, DefaultsKey.mediaPDFGrayscale] {
             suite.expect(Defaults.registeredDefaults[key] != nil, "\(key) is registered, so backup includes it")
         }
