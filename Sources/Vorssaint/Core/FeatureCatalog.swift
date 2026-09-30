@@ -160,7 +160,7 @@ extension AppFeature {
         case .shelf: return "tray.full"
         case .urlCleaner: return "link"
         case .diskImageInstaller: return "externaldrive.badge.plus"
-        case .clipboardImageOptimizer: return "photo.badge.arrow.down"
+        case .clipboardImageOptimizer: return "arrow.down.right.and.arrow.up.left"
         case .mixer: return "speaker.wave.2"
         case .soundOutputSwitcher: return "hifispeaker"
         case .audioPriority: return "list.number"
