@@ -14,6 +14,41 @@ enum MediaPDFCompressorTests {
         protection(suite)
         filter(suite)
         rewrite(suite)
+        workspace(suite)
+    }
+
+    static func workspace(_ suite: TestSuite) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MediaPDFWorkspaceTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let pdf = dir.appendingPathComponent("doc.pdf")
+        makeImagePDF(pdf, pages: 1, info: [:])
+        suite.expect(NotchFileToolsSupport.accepts([pdf], for: .pdfCompressor), "the PDF tool takes a PDF")
+        suite.expect(!NotchFileToolsSupport.accepts([pdf], for: .imageCompressor),
+                     "the image tool still refuses a PDF, which ImageIO would rasterize")
+        suite.expect(!NotchFileToolsSupport.accepts([pdf, pdf], for: .pdfCompressor), "the PDF tool takes one file")
+        suite.expect(NotchFileToolsSupport.optimizationTool(for: [pdf]) == nil,
+                     "a PDF dropped straight on the notch still stays in the shelf")
+        suite.expect(MediaTool.allCases.firstIndex(of: .pdfCompressor) == 3, "the PDF tool sits after the image tool")
+        suite.expect(MediaSupport.sanitizedTool("pdfCompressor") == .pdfCompressor, "the last tool is remembered")
+        suite.expect(MediaPDFOptions(dpi: 7, quality: 9, grayscale: true).settings
+                     == Engine.Settings(dpi: Engine.Settings.defaultDPI, quality: 1, grayscale: true),
+                     "stored options are sanitized before use")
+        for key in [DefaultsKey.mediaPDFDPI, DefaultsKey.mediaPDFQuality, DefaultsKey.mediaPDFGrayscale] {
+            suite.expect(Defaults.registeredDefaults[key] != nil, "\(key) is registered, so backup includes it")
+        }
+        for language in AppLanguage.allCases {
+            let text = MediaPDFStrings.localized(language)
+            let all = [text.tool, text.start, text.resolution, text.dpiFormat, text.grayscale, text.caption,
+                       text.notSmallerFormat, text.notDownloaded, text.notWritable, text.notEnoughSpace]
+                + Engine.Protection.allCases.map(text.protectionMessage)
+            suite.expect(all.allSatisfy { !$0.isEmpty }, "\(language) has every PDF string")
+            suite.expect(text.notSmallerFormat.components(separatedBy: "%@").count == 3
+                         && text.dpiFormat.contains("%d"), "\(language) PDF formats keep their placeholders")
+            suite.expect(Set(Engine.Protection.allCases.map(text.protectionMessage)).count
+                         == Engine.Protection.allCases.count, "\(language) names each skip reason differently")
+        }
     }
 
     static func settings(_ suite: TestSuite) {
