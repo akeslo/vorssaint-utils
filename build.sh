@@ -529,6 +529,7 @@ if (( TEST )); then
         Tests/*.swift
         Sources/Vorssaint/Services/BreakReminders/BreakReminderModels.swift
         Sources/Vorssaint/Services/BreakReminders/ActivityRotation.swift
+        Sources/Vorssaint/Services/BreakReminders/BusyPolicy.swift
         build/generated-tests/*.swift
     )
     TEST_OUTPUT_FILE_MAP="$TEST_OBJECT_DIR/output-file-map.json"
