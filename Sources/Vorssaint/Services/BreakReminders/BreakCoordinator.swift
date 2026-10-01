@@ -226,11 +226,12 @@ struct BreakCoordinator {
         }
     }
 
+    /// The live prompt with this id, if it is still the one on screen.
+    func prompt(_ id: UUID) -> BreakPrompt? { live?.prompt.id == id ? live?.prompt : nil }
+
     // MARK: Test support (used only by Tests/BreakReminderTests.swift)
 
     mutating func forceState(_ kind: BreakKind, _ state: BreakSchedule.State) {
         schedules[kind] = BreakSchedule(state: state)
     }
-
-    func prompt(_ id: UUID) -> BreakPrompt? { live?.prompt.id == id ? live?.prompt : nil }
 }

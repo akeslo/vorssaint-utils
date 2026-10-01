@@ -89,3 +89,30 @@ struct BreakPrompt: Equatable {
     /// The activity's own seconds, or the kind's break length.
     let seconds: Int
 }
+
+/// Each break plays its start sound once and its end sound once, whichever of
+/// the countdown finishing or Done comes first; snooze or skip ends it silently.
+struct BreakSoundState: Equatable {
+    private(set) var started: UUID?
+    private var ended: UUID?
+
+    /// True when this prompt has not sounded its start yet.
+    mutating func start(_ id: UUID) -> Bool {
+        guard started != id else { return false }
+        started = id
+        ended = nil
+        return true
+    }
+
+    /// True when this started prompt has not sounded its end yet.
+    mutating func end(_ id: UUID) -> Bool {
+        guard started == id, ended != id else { return false }
+        ended = id
+        return true
+    }
+
+    /// The break ended without completing; its end sound never plays.
+    mutating func cancel(_ id: UUID) {
+        if started == id { ended = id }
+    }
+}
