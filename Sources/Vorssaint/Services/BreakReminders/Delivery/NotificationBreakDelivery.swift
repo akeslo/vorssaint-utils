@@ -12,6 +12,7 @@ final class NotificationBreakDelivery: BreakDelivery {
     /// Cached because present must answer synchronously. A stale cache can
     /// drop one prompt until its timeout; accepted in the spec.
     func refreshAuthorization(requestIfUndetermined: Bool) {
+        guard Bundle.main.bundleIdentifier != nil else { return }
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
                 self.authorized = settings.authorizationStatus == .authorized
@@ -24,7 +25,7 @@ final class NotificationBreakDelivery: BreakDelivery {
     }
 
     func present(_ prompt: BreakPrompt, respond: @escaping (BreakAction) -> Void) -> Bool {
-        guard authorized else { return false }
+        guard Bundle.main.bundleIdentifier != nil, authorized else { return false }
         let text = FeatureStrings.breakReminders(L10n.shared.language)
         Notifier.breakDoneTitle = text.done
         Notifier.breakSnoozeTitle = text.snooze
@@ -42,7 +43,7 @@ final class NotificationBreakDelivery: BreakDelivery {
     }
 
     func handle(id: UUID, actionIdentifier: String) {
-        guard let respond = handlers[id] else { return }
+        guard let respond = handlers.removeValue(forKey: id) else { return }
         switch actionIdentifier {
         case Notifier.breakSnoozeAction: respond(.snooze)
         case UNNotificationDismissActionIdentifier: respond(.skip)

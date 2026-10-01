@@ -2389,8 +2389,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         if let raw = response.notification.request.content.userInfo[Notifier.breakPromptKey] as? String,
            let id = UUID(uuidString: raw) {
-            NotificationBreakDelivery.shared.handle(id: id, actionIdentifier: response.actionIdentifier)
-            completionHandler()
+            let actionIdentifier = response.actionIdentifier
+            DispatchQueue.main.async {
+                NotificationBreakDelivery.shared.handle(id: id, actionIdentifier: actionIdentifier)
+                completionHandler()
+            }
             return
         }
         if let transactionID = Notifier.whatsAppOrganizerTransactionID(from: response) {
