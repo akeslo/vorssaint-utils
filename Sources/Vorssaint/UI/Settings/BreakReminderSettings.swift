@@ -44,7 +44,6 @@ struct BreakReminderSettings: View {
                 Stepper(value: $escalateAfter, in: 60...600, step: 60) {
                     Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter, language: l10n.language))")
                 }
-                Toggle(text.breathingGuide, isOn: $breathingGuide)
                 Toggle(text.workingHours, isOn: $hoursOn)
                 if hoursOn {
                     WorkingDaysPicker(days: $days, language: l10n.language)
@@ -86,6 +85,9 @@ struct BreakReminderSettings: View {
                     Button {
                         BreakReminderService.shared.preview(kind)
                     } label: { Label(text.preview, systemImage: "play.circle") }
+                }
+                if kind == .movement {
+                    Toggle(text.breathingGuide, isOn: $breathingGuide)
                 }
                 ActivityListEditor(listKey: listKey, kind: kind, text: text)
             }

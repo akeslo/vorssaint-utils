@@ -73,7 +73,8 @@ final class OverlayBreakDelivery: BreakDelivery {
                 title: prompt.activity?.text ?? generic,
                 symbol: prompt.activity?.symbol ?? (prompt.kind == .eyes ? "eye" : "figure.walk"),
                 kind: prompt.kind, seconds: prompt.seconds, shownAt: shownAt,
-                breathing: UserDefaults.standard.bool(forKey: DefaultsKey.breakRemindersBreathingGuide),
+                breathing: prompt.kind == .movement
+                    && UserDefaults.standard.bool(forKey: DefaultsKey.breakRemindersBreathingGuide),
                 text: text, respond: respond))
             panel.setFrame(screen.frame, display: true)
             panel.orderFrontRegardless()
