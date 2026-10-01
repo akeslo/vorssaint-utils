@@ -135,6 +135,12 @@ final class NotchService: ObservableObject {
     private var powerSource: CFRunLoopSource?
     private var powerSampler: PowerSampler?
     private var captureID: UUID?
+    private var captureRoute: NotchEvent = .capture
+    private var captureOwnsPin = false
+    private var captureCollapsed: (() -> Void)?
+    private var captureDisplaced: (() -> Void)?
+    var currentCaptureID: UUID? { captureID }
+    var isExpanded: Bool { expanded }
     private var captureFallback: (() -> Void)?
     private var captureClose: (() -> Void)?
     private var captureHover: ((Bool) -> Void)?
@@ -779,7 +785,7 @@ final class NotchService: ObservableObject {
             bindEvents()
             if AppFeature.shelf.isAvailable { ShelfService.shared.syncWithPreferences() }
         }
-        if !NotchSupport.routes(.capture), captureContent != nil {
+        if !NotchSupport.routes(captureRoute), captureContent != nil {
             let fallback = captureFallback
             clearCapture()
             fallback?()
@@ -937,14 +943,16 @@ final class NotchService: ObservableObject {
     }
 
     func open(_ module: NotchModule? = nil, pinned: Bool = false, takeFocus: Bool = true,
-              appPanel: Bool = false, metric: MetricDetailKind? = nil, feedback: Bool = true, sections: Bool = false) {
+              appPanel: Bool = false, metric: MetricDetailKind? = nil, feedback: Bool = true, sections: Bool = false,
+              allowUnlisted: Bool = false) {
         guard NotchSupport.isEnabled(), !suspended else { return }
         if !running || self.panel == nil { syncWithPreferences() }
         else { refreshModules() }
         guard let panel else { return }
         let reopening = reopeningDestination
         let useReopeningSurface = module == nil && !expanded && !appPanel && !sections && metric == nil
-        let destination = module.flatMap { modules.contains($0) ? $0 : nil } ?? reopening.module
+        let destination = module.flatMap { (modules.contains($0) || (allowUnlisted && $0 == .captures)) ? $0 : nil }
+            ?? reopening.module
         let appPanel = appPanel || (useReopeningSurface && reopening.appPanel)
         let sections = sections || (useReopeningSurface && reopening.sections)
         if useReopeningSurface && reopening.appPanel { MenuPanelFocus.shared.showNormalPanel() }
@@ -988,8 +996,13 @@ final class NotchService: ObservableObject {
         if feedback, changesPresentation { provideHapticFeedback() }
     }
 
-    func collapse() {
+    func collapse(user: Bool = false) {
         guard captureControls == nil, !heldDrag else { return }
+        if captureID != nil, captureRoute != .capture {
+            let callback = user ? captureCollapsed : captureDisplaced
+            clearCapture()
+            callback?()
+        }
         hoverState.close(pointerInside: windowHost?.containsHover(NSEvent.mouseLocation) == true)
         pinned = false
         hoverWork?.cancel(); hoverWork = nil
@@ -1012,7 +1025,7 @@ final class NotchService: ObservableObject {
         syncVisibleConsumers()
     }
 
-    func toggle() { expanded ? collapse() : open() }
+    func toggle() { expanded ? collapse(user: true) : open() }
 
     func setMusicDetailsVisible(_ visible: Bool) {
         guard visible != musicDetailVisible else { return }
@@ -1298,7 +1311,7 @@ final class NotchService: ObservableObject {
         switch action {
         case .createPad: pad.createPad(defaultName: FeatureStrings.scratchpad(L10n.shared.language).pageTitle)
         case .closeSelectedPad: scratchpadCloseSerial += 1
-        case .hidePad: collapse()
+        case .hidePad: collapse(user: true)
         case .find: requestScratchpadFind(.showFindInterface)
         case .findNext: requestScratchpadFind(.nextMatch)
         case .findPrevious: requestScratchpadFind(.previousMatch)
@@ -1423,11 +1436,11 @@ final class NotchService: ObservableObject {
     private func stepBack() {
         guard captureControls == nil, !heldDrag else { return }
         if showingAppPanel || selectedMetric != nil {
-            if detailHasPage { goBack() } else { collapse() }
+            if detailHasPage { goBack() } else { collapse(user: true) }
         } else if let close = pageLayers[selected] {
             close()
         } else {
-            collapse()
+            collapse(user: true)
         }
     }
 
@@ -1887,21 +1900,47 @@ final class NotchService: ObservableObject {
         !expanded && !dragPlaceholder && captureControls == nil
     }
 
-    func presentCapture(id: UUID, content: AnyView, actions: AnyView? = nil, height: CGFloat, fallback: @escaping () -> Void,
-                        close: @escaping () -> Void, hover: @escaping (Bool) -> Void) -> Bool {
-        guard acceptsSystemFeedback, NotchSupport.routes(.capture) else { return false }
-        let keepOpen = expanded && pinned
+    func presentCapture(id: UUID, content: AnyView, actions: AnyView? = nil, height: CGFloat,
+                        route: NotchEvent = .capture, takeFocus: Bool? = nil, pinIsland: Bool = false,
+                        fallback: @escaping () -> Void, close: @escaping () -> Void,
+                        hover: @escaping (Bool) -> Void,
+                        collapsed: (() -> Void)? = nil, displaced: (() -> Void)? = nil) -> Bool {
+        guard acceptsSystemFeedback, NotchSupport.routes(route) else { return false }
+        // Never take the slot from a live screenshot.
+        if route != .capture, captureID != nil, captureRoute == .capture { return false }
+        let wasExpanded = expanded
+        let keepOpen = expanded && self.pinned && !captureOwnsPin
+        // A screenshot never inherits a break's pin: it keeps today's unpinned behavior.
+        if route == .capture, captureOwnsPin { pinned = false; captureOwnsPin = false }
+        let inheritedPin = captureOwnsPin
+        // A break losing the slot hears it now, not on the watch's next tick.
+        if captureID != nil, captureRoute != .capture, let outgoing = captureDisplaced {
+            captureDisplaced = nil
+            captureCollapsed = nil
+            outgoing()
+        }
         captureID = id
+        captureRoute = route
         captureContentHeight = height
         captureContent = content
         captureActions = actions
         captureFallback = fallback
         captureClose = close
         captureHover = hover
-        open(.captures, pinned: keepOpen,
-             takeFocus: UserDefaults.standard.bool(forKey: DefaultsKey.screenshotPreviewTakesFocus), feedback: false)
+        captureCollapsed = collapsed
+        captureDisplaced = displaced
+        captureOwnsPin = (!keepOpen && pinIsland) || inheritedPin
+        open(.captures, pinned: keepOpen || pinIsland,
+             takeFocus: takeFocus ?? UserDefaults.standard.bool(forKey: DefaultsKey.screenshotPreviewTakesFocus),
+             feedback: false, allowUnlisted: route != .capture)
         captureHover?(inside)
-        return true
+        // A screenshot keeps today's contract: once routed, it counts as shown.
+        guard route != .capture, !isCaptureVisible(id: id) else { return true }
+        let tookPin = captureOwnsPin && !inheritedPin
+        clearCapture()
+        if tookPin { pinned = false }
+        if !wasExpanded { collapse() }
+        return false
     }
 
     func updateCaptureHeight(id: UUID, height: CGFloat) {
@@ -1919,10 +1958,11 @@ final class NotchService: ObservableObject {
 
     func removeCapture(id: UUID) {
         guard captureID == id else { return }
+        let ownedPin = captureOwnsPin
         clearCapture()
+        if ownedPin { pinned = false }
         if expanded, selected == .captures, !showingSections {
-            if pinned { refreshPresentation() }
-            else { collapse() }
+            if pinned { refreshPresentation() } else { collapse() }
         }
     }
 
@@ -1934,6 +1974,10 @@ final class NotchService: ObservableObject {
         captureFallback = nil
         captureClose = nil
         captureHover = nil
+        captureRoute = .capture
+        captureCollapsed = nil
+        captureDisplaced = nil
+        captureOwnsPin = false
     }
 
     private func mutatePresentation(transitionContent: NotchContentTransition = .none, _ change: () -> Void) {

@@ -348,7 +348,7 @@ struct NotchView: View {
                     Menu {
                         Button(service.pinned ? text.unpin : text.pin) { service.pinned.toggle() }
                         Button(l10n.s.menuSettings, action: service.openSettings)
-                        Button(text.collapse, action: service.collapse)
+                        Button(text.collapse, action: { service.collapse(user: true) })
                     } label: { Image(systemName: "ellipsis") }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
@@ -395,7 +395,7 @@ struct NotchView: View {
                 if showsCapturesClear { NotchClearCapturesButton(inMenu: true) }
                 Button(service.pinned ? text.unpin : text.pin) { service.pinned.toggle() }
                 Button(l10n.s.menuSettings, action: service.openSettings)
-                Button(text.collapse, action: service.collapse)
+                Button(text.collapse, action: { service.collapse(user: true) })
             } label: {
                 Image(systemName: service.pinned ? "pin.fill" : "ellipsis")
                     .frame(width: 28, height: 28)
@@ -435,7 +435,7 @@ struct NotchView: View {
             if !quickActions.contains(.settings) {
                 NotchIconButton(symbol: "gearshape", title: l10n.s.menuSettings, action: service.openSettings)
             }
-            NotchIconButton(symbol: "chevron.up", title: text.collapse, action: service.collapse)
+            NotchIconButton(symbol: "chevron.up", title: text.collapse, action: { service.collapse(user: true) })
         }
         .opacity(revealed ? 1 : 0)
         .overlay(alignment: .trailing) {
