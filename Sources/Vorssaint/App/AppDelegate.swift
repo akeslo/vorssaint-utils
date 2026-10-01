@@ -1426,6 +1426,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             menu.addItem(cleaningItem)
         }
 
+        if AppFeature.breakReminders.isAvailable {
+            let text = FeatureStrings.breakReminders(L10n.shared.language)
+            let breaks = NSMenuItem(title: text.pauseMenu, action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            if BreakReminderService.shared.isPaused {
+                sub.addItem(withTitle: text.resume, action: #selector(resumeBreaks), keyEquivalent: "").target = self
+            } else {
+                sub.addItem(withTitle: text.pauseHour, action: #selector(pauseBreaksHour), keyEquivalent: "").target = self
+                sub.addItem(withTitle: text.pauseTomorrow, action: #selector(pauseBreaksTomorrow), keyEquivalent: "").target = self
+            }
+            breaks.submenu = sub
+            menu.addItem(breaks)
+        }
+
         if menu.items.isEmpty == false {
             menu.addItem(.separator())
         }
@@ -1473,6 +1487,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     @objc private func menuToggleAwake() {
         KeepAwakeManager.shared.toggle()
     }
+
+    @objc private func pauseBreaksHour() { BreakReminderService.shared.pause(for: 3600) }
+    @objc private func pauseBreaksTomorrow() { BreakReminderService.shared.pauseUntilTomorrow() }
+    @objc private func resumeBreaks() { BreakReminderService.shared.resume() }
 
     @objc private func menuCleaningMode() {
         CleaningModeManager.shared.activate()

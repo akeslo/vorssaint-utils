@@ -1950,11 +1950,8 @@ enum FeatureCatalogTests {
                 && AppFeature.diskImageInstaller.settingsDestination
                 == FeatureSettingsDestination(.features),
                "features without dedicated pages use explicit nearest Settings destinations")
-        // Break reminders gets its own pane in a later change; until then it
-        // has none to link to.
         suite.expect(!AppFeature.diskImageInstaller.hasNavigableSettingsDestination
-                && !AppFeature.breakReminders.hasNavigableSettingsDestination
-                && AppFeature.allCases.filter { $0 != .diskImageInstaller && $0 != .breakReminders }
+                && AppFeature.allCases.filter { $0 != .diskImageInstaller }
                     .allSatisfy(\.hasNavigableSettingsDestination),
                "a feature without a separate configuration surface does not show a dead-end link")
         suite.expect(AppFeature.monitorCPU.settingsDestination == FeatureSettingsDestination(.monitor)
