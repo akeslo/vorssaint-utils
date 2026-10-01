@@ -527,6 +527,8 @@ if (( TEST )); then
         Sources/Vorssaint/Services/ManagedDownloads/WhatsAppDownloadSupport.swift
         Sources/Vorssaint/Core/SecureInputSupport.swift
         Tests/*.swift
+        Sources/Vorssaint/Services/BreakReminders/BreakReminderModels.swift
+        Sources/Vorssaint/Services/BreakReminders/ActivityRotation.swift
         build/generated-tests/*.swift
     )
     TEST_OUTPUT_FILE_MAP="$TEST_OBJECT_DIR/output-file-map.json"
