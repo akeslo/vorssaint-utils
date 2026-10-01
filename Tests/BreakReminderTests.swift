@@ -11,6 +11,7 @@ enum BreakReminderTests {
         presence(suite)
         coordinator(suite)
         store(suite)
+        hardening(suite)
         strings(suite)
     }
 
@@ -46,6 +47,34 @@ enum BreakReminderTests {
         BreakSettingsStore.saveRotation(r, to: d)
         suite.expect(BreakSettingsStore.loadRotation(d).indices[.eyes] == r.indices[.eyes]
                      && BreakSettingsStore.loadRotation(d).indices[.movement] == 0, "rotation round-trips")
+    }
+
+    static func hardening(_ suite: TestSuite) {
+        var r = ActivityRotation()
+        suite.expect(!BreakSettingsStore.rotationNeedsSave(old: r, new: r), "an unchanged rotation is not saved")
+        var r2 = r; r2.advance(.eyes, count: 3)
+        suite.expect(BreakSettingsStore.rotationNeedsSave(old: r, new: r2), "an advanced rotation is saved")
+        r = r2
+        var s = settings()
+        suite.expect(s.needsTick, "enabled kinds need the tick")
+        s.eyes.enabled = false
+        suite.expect(s.needsTick, "one enabled kind still needs the tick")
+        s.movement.enabled = false
+        suite.expect(!s.needsTick, "no enabled kind needs no tick")
+        for key in [DefaultsKey.breakRemindersPausedUntil, DefaultsKey.breakRemindersEyesRotationIndex,
+                    DefaultsKey.breakRemindersMovementRotationIndex] {
+            suite.expect(SettingsBackupSupport.machineStateKeys.contains(key)
+                         && !SettingsBackupSupport.exportKeys().contains(key),
+                         "\(key) is machine state and never travels in a backup")
+        }
+        var ny = Calendar(identifier: .gregorian)
+        ny.timeZone = TimeZone(identifier: "America/New_York")!
+        let sunday = 0b0000001
+        let hours = WorkingHours(enabled: true, days: sunday, startMinutes: 540, endMinutes: 1080)
+        let sat = ny.date(from: DateComponents(year: 2026, month: 3, day: 7, hour: 12))!
+        suite.expect(BusyPolicy.pauseUntilTomorrow(now: sat, hours: hours, calendar: ny)
+                        == ny.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 9)),
+                     "pause across the spring-forward day lands at 09:00 local")
     }
 
     static func strings(_ suite: TestSuite) {

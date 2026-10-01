@@ -42,6 +42,8 @@ final class BreakReminderService {
         running = true
         settings = BreakSettingsStore.load(defaults, language: L10n.shared.language)
         coordinator = BreakCoordinator(rotation: BreakSettingsStore.loadRotation(defaults))
+        away = AwayTracker()
+        pendingAway = nil
         clock.reset(now: Date())
         sinks[.notification] = NotificationBreakDelivery.shared
         sinks[.overlay] = OverlayBreakDelivery.shared
@@ -51,7 +53,7 @@ final class BreakReminderService {
         }
         NotificationBreakDelivery.shared.refreshAuthorization(requestIfUndetermined: wantsNotifications)
         observeSystem()
-        timer = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) { [weak self] _ in self?.tick() }
+        updateTickTimer()
         watchdog = Timer.scheduledTimer(withTimeInterval: Self.watchdogInterval, repeats: true) { [weak self] _ in
             self?.runWatchdog()
         }
@@ -71,6 +73,18 @@ final class BreakReminderService {
         let old = settings
         settings = BreakSettingsStore.load(defaults, language: L10n.shared.language)
         execute(coordinator.settingsChanged(from: old, to: settings))
+        updateTickTimer()
+    }
+
+    /// The 5 s tick runs only while eyes or movement is enabled.
+    private func updateTickTimer() {
+        if running && settings.needsTick {
+            guard timer == nil else { return }
+            clock.reset(now: Date())
+            timer = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) { [weak self] _ in self?.tick() }
+        } else {
+            timer?.invalidate(); timer = nil
+        }
     }
 
     func pause(for interval: TimeInterval) { setPause(Date().addingTimeInterval(interval)) }
@@ -93,12 +107,15 @@ final class BreakReminderService {
         let step = clock.step(now: now, interval: Self.tickInterval)
         let awayFor = [pendingAway, step.gap].compactMap { $0 }.max()
         pendingAway = nil
+        let rotationBefore = coordinator.rotation
         let signals = BreakSignalSampler.sample(includeBusy: coordinator.needsBusySignals)
         let verdict = BusyPolicy.verdict(signals, settings: settings, now: now, calendar: .current)
         execute(coordinator.tick(now: now, dt: step.dt, verdict: verdict, idleSeconds: signals.idleSeconds,
                                  awayFor: awayFor, settings: settings, newID: UUID.init))
         checkNotchDisplacement(now: now)
-        BreakSettingsStore.saveRotation(coordinator.rotation, to: defaults)
+        if BreakSettingsStore.rotationNeedsSave(old: rotationBefore, new: coordinator.rotation) {
+            BreakSettingsStore.saveRotation(coordinator.rotation, to: defaults)
+        }
     }
 
     private func execute(_ outputs: [BreakCoordinator.Output]) {
@@ -120,7 +137,7 @@ final class BreakReminderService {
         } ?? false
         if shown {
             // The overlay may be waiting on secure input; overlayShownLate starts its timers.
-            if via == .overlay && IsSecureEventInputEnabled() { return }
+            if via == .overlay && OverlayBreakDelivery.shared.isDeferring(id: prompt.id) { return }
             coordinator.presented(id: prompt.id, via: via, now: Date(), settings: settings)
         } else {
             execute(coordinator.deliveryFailed(id: prompt.id, via: via, now: Date(), settings: settings))

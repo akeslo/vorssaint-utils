@@ -1910,6 +1910,8 @@ final class NotchService: ObservableObject {
         if route != .capture, captureID != nil, captureRoute == .capture { return false }
         let wasExpanded = expanded
         let keepOpen = expanded && self.pinned && !captureOwnsPin
+        // A screenshot never inherits a break's pin: it keeps today's unpinned behavior.
+        if route == .capture, captureOwnsPin { pinned = false; captureOwnsPin = false }
         let inheritedPin = captureOwnsPin
         // A break losing the slot hears it now, not on the watch's next tick.
         if captureID != nil, captureRoute != .capture, let outgoing = captureDisplaced {

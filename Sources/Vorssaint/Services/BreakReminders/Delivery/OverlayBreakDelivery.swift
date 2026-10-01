@@ -24,6 +24,9 @@ final class OverlayBreakDelivery: BreakDelivery {
     private var panels: [UUID: [NSPanel]] = [:]
     private var waiting: [UUID: Timer] = [:]
 
+    /// True while the prompt waits on secure input; decided once, in present.
+    func isDeferring(id: UUID) -> Bool { waiting[id] != nil }
+
     func present(_ prompt: BreakPrompt, respond: @escaping (BreakAction) -> Void) -> Bool {
         if IsSecureEventInputEnabled() {
             // Wait for a password field to clear, up to 2 minutes, then show anyway.
@@ -43,7 +46,9 @@ final class OverlayBreakDelivery: BreakDelivery {
 
     func dismiss(id: UUID) {
         waiting.removeValue(forKey: id)?.invalidate()
-        panels.removeValue(forKey: id)?.forEach { $0.orderOut(nil) }
+        // Not inside the panel's own button action.
+        guard let gone = panels.removeValue(forKey: id) else { return }
+        DispatchQueue.main.async { gone.forEach { $0.orderOut(nil) } }
     }
 
     private func show(_ prompt: BreakPrompt, respond: @escaping (BreakAction) -> Void) {

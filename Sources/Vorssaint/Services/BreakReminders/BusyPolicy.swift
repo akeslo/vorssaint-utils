@@ -25,7 +25,7 @@ enum BusyPolicy {
             let day = calendar.date(byAdding: .day, value: offset, to: today)!
             let weekday = calendar.component(.weekday, from: day)
             if hours.days & (1 << (weekday - 1)) != 0 {
-                return calendar.date(byAdding: .minute, value: hours.startMinutes, to: day)!
+                return calendar.date(bySettingHour: hours.startMinutes / 60, minute: hours.startMinutes % 60, second: 0, of: day)!
             }
         }
         return midnight

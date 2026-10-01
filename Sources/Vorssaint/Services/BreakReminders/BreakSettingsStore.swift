@@ -56,6 +56,9 @@ enum BreakSettingsStore {
         d.set(r.indices[.movement] ?? 0, forKey: DefaultsKey.breakRemindersMovementRotationIndex)
     }
 
+    /// UserDefaults.set posts didChangeNotification even for an unchanged value.
+    static func rotationNeedsSave(old: ActivityRotation, new: ActivityRotation) -> Bool { old != new }
+
     static func savePause(_ until: Date?, to d: UserDefaults) {
         d.set(until?.timeIntervalSince1970 ?? 0, forKey: DefaultsKey.breakRemindersPausedUntil)
     }

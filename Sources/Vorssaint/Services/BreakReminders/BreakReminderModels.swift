@@ -49,6 +49,9 @@ struct BreakSettings: Equatable {
     var hours: WorkingHours
     var pausedUntil: Date?
 
+    /// The tick only has work while a kind is enabled.
+    var needsTick: Bool { eyes.enabled || movement.enabled }
+
     subscript(kind: BreakKind) -> KindSettings {
         get { kind == .eyes ? eyes : movement }
         set { if kind == .eyes { eyes = newValue } else { movement = newValue } }
