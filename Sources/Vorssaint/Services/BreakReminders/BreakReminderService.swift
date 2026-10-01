@@ -105,7 +105,10 @@ final class BreakReminderService {
                                  seconds: activity?.seconds ?? Int(k.breakLength))
         for style in BreakCoordinator.chain(for: k.style) {
             guard let sink = sinks[style] else { continue }
-            if sink.present(prompt, respond: { _ in sink.dismiss(id: prompt.id) }) { return }
+            if sink.present(prompt, respond: { _ in sink.dismiss(id: prompt.id) }) {
+                Self.play(defaults.string(forKey: DefaultsKey.breakRemindersStartSound))
+                return
+            }
         }
     }
 
@@ -134,10 +137,46 @@ final class BreakReminderService {
         }
     }
 
+    // MARK: Sounds
+
+    private var sound = BreakSoundState()
+    private var endSoundTimer: Timer?
+
+    /// The start sound, once per break, when it first reaches a screen; the
+    /// end sound is armed for when its countdown runs out.
+    private func breakShown(_ prompt: BreakPrompt) {
+        guard sound.start(prompt.id) else { return }
+        Self.play(defaults.string(forKey: DefaultsKey.breakRemindersStartSound))
+        endSoundTimer?.invalidate()
+        endSoundTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(prompt.seconds), repeats: false) { [weak self] _ in
+            self?.breakFinished(prompt.id)
+        }
+    }
+
+    private func breakFinished(_ id: UUID) {
+        guard sound.end(id) else { return }
+        endSoundTimer?.invalidate(); endSoundTimer = nil
+        Self.play(defaults.string(forKey: DefaultsKey.breakRemindersEndSound))
+    }
+
+    private func breakCancelled(_ id: UUID) {
+        sound.cancel(id)
+        if sound.started == id { endSoundTimer?.invalidate(); endSoundTimer = nil }
+    }
+
+    /// Plays a system alert sound by file name; "" or nil is silence.
+    static func play(_ name: String?) {
+        guard let name, !name.isEmpty else { return }
+        NSSound(contentsOf: TextSnippetSupport.soundFileURL(for: name), byReference: true)?.play()
+    }
+
     private func execute(_ outputs: [BreakCoordinator.Output]) {
         for output in outputs {
             switch output {
             case let .dismiss(id, via):
+                // Escalation and restyles dismiss one surface for another; the
+                // break only ends when the coordinator no longer holds it.
+                if coordinator.livePromptID != id { breakCancelled(id) }
                 sinks[via]?.dismiss(id: id)
             case let .present(prompt, via):
                 present(prompt, via: via)
@@ -149,11 +188,13 @@ final class BreakReminderService {
         notchWatch = NotchBreakWatch()
         let shown = sinks[via]?.present(prompt) { [weak self] action in
             guard let self, self.running else { return }
+            if action == .done { self.breakFinished(prompt.id) } else { self.breakCancelled(prompt.id) }
             self.execute(self.coordinator.respond(id: prompt.id, action: action, now: Date(), settings: self.settings))
         } ?? false
         if shown {
             // The overlay may be waiting on secure input; overlayShownLate starts its timers.
             if via == .overlay && OverlayBreakDelivery.shared.isDeferring(id: prompt.id) { return }
+            breakShown(prompt)
             coordinator.presented(id: prompt.id, via: via, now: Date(), settings: settings)
         } else {
             execute(coordinator.deliveryFailed(id: prompt.id, via: via, now: Date(), settings: settings))
@@ -163,6 +204,7 @@ final class BreakReminderService {
     /// The overlay waited on secure input; restart its timers from now.
     func overlayShownLate(id: UUID) {
         guard running else { return }
+        if let prompt = coordinator.prompt(id) { breakShown(prompt) }
         coordinator.presented(id: id, via: .overlay, now: Date(), settings: settings)
     }
 
