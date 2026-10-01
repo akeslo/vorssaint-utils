@@ -533,6 +533,8 @@ if (( TEST )); then
         Sources/Vorssaint/Services/BreakReminders/BreakPresence.swift
         Sources/Vorssaint/Services/BreakReminders/BreakSchedule.swift
         Sources/Vorssaint/Services/BreakReminders/BreakCoordinator.swift
+        Sources/Vorssaint/Core/BreakReminderStrings.swift
+        Sources/Vorssaint/Services/BreakReminders/BreakSettingsStore.swift
         build/generated-tests/*.swift
     )
     TEST_OUTPUT_FILE_MAP="$TEST_OBJECT_DIR/output-file-map.json"

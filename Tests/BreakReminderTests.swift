@@ -10,6 +10,54 @@ enum BreakReminderTests {
         schedule(suite)
         presence(suite)
         coordinator(suite)
+        store(suite)
+        strings(suite)
+    }
+
+    static func store(_ suite: TestSuite) {
+        let d = UserDefaults(suiteName: "com.vorssaint.tests.break-reminders")!
+        d.removePersistentDomain(forName: "com.vorssaint.tests.break-reminders")
+        defer { d.removePersistentDomain(forName: "com.vorssaint.tests.break-reminders") }
+        d.register(defaults: Defaults.registeredDefaults)
+        let s = BreakSettingsStore.load(d, language: .enUS)
+        suite.expect(s.eyes.interval == 1200 && s.eyes.breakLength == 20 && s.eyes.style == .notification,
+                     "eyes defaults: 20 min, 20 s, notification")
+        suite.expect(s.movement.interval == 3000 && s.movement.breakLength == 120 && s.movement.style == .escalating,
+                     "movement defaults: 50 min, 2 min, escalating")
+        suite.expect(s.eyes.activities.map(\.seconds) == [20, 10, 10] && s.movement.activities.count == 4,
+                     "seeded activities")
+        suite.expect(s.pausedUntil == nil && !s.hours.enabled, "no pause and no working hours by default")
+        let edited = [BreakActivity(id: UUID(), text: "x", seconds: 7)]
+        d.set(BreakSettingsStore.encode(edited), forKey: DefaultsKey.breakRemindersEyesActivities)
+        suite.expect(BreakSettingsStore.load(d, language: .enUS).eyes.activities == edited, "edited lists round-trip")
+        for key in [DefaultsKey.breakRemindersEyesActivities, DefaultsKey.breakRemindersPausedUntil,
+                    DefaultsKey.breakRemindersWorkingDays, DefaultsKey.notchBreakReminders] {
+            suite.expect(Defaults.registeredDefaults[key] != nil, "\(key) is registered so backup includes it")
+        }
+        var changed = s
+        changed.eyes.interval = 600
+        changed.movement.style = .overlay
+        changed.pausedUntil = Date(timeIntervalSince1970: 5000)
+        BreakSettingsStore.save(changed, to: d)
+        let back = BreakSettingsStore.load(d, language: .enUS)
+        suite.expect(back.eyes.interval == 600 && back.movement.style == .overlay
+                     && back.pausedUntil == Date(timeIntervalSince1970: 5000), "save then load round-trips settings")
+        var r = ActivityRotation(); r.advance(.eyes, count: 3)
+        BreakSettingsStore.saveRotation(r, to: d)
+        suite.expect(BreakSettingsStore.loadRotation(d).indices[.eyes] == r.indices[.eyes]
+                     && BreakSettingsStore.loadRotation(d).indices[.movement] == 0, "rotation round-trips")
+    }
+
+    static func strings(_ suite: TestSuite) {
+        for language in AppLanguage.allCases {
+            let s = FeatureStrings.breakReminders(language)
+            suite.expect(s.defaultEyes.count == 3 && s.defaultMovement.count == 4,
+                         "\(language) seeds the same number of activities")
+            let all = Mirror(reflecting: s).children.compactMap { $0.value as? String }
+                + s.defaultEyes + s.defaultMovement
+            suite.expect(all.allSatisfy { !$0.isEmpty }, "\(language) has no empty break string")
+            suite.expect(all.allSatisfy { !$0.contains("%") }, "\(language) break strings contain no raw percent")
+        }
     }
 
     static func activity(_ text: String, _ seconds: Int = 20) -> BreakActivity {
