@@ -7,6 +7,7 @@ enum BreakReminderTests {
     static func run(_ suite: TestSuite) {
         rotation(suite)
         policy(suite)
+        schedule(suite)
     }
 
     static func activity(_ text: String, _ seconds: Int = 20) -> BreakActivity {
@@ -89,5 +90,115 @@ enum BreakReminderTests {
         suite.expect(BusyPolicy.pauseUntilTomorrow(now: date(30, 15), hours: settings().hours, calendar: cal)
                         == cal.date(from: DateComponents(year: 2026, month: 10, day: 1)),
                      "without working hours, until tomorrow is midnight")
+    }
+
+    static func schedule(_ suite: TestSuite) {
+        let k = KindSettings(enabled: true, interval: 100, breakLength: 20, style: .overlay, activities: [])
+        let t0 = date(30, 10)
+        let id = UUID()
+        func tick(_ s: inout BreakSchedule, _ v: BusyVerdict, dt: TimeInterval = 5, idle: TimeInterval = 0,
+                  away: TimeInterval? = nil, kind: KindSettings = k, now: Date = t0) -> [BreakSchedule.Event] {
+            s.tick(dt: dt, verdict: v, idleSeconds: idle, awayFor: away, settings: kind, now: now, newID: { id })
+        }
+
+        var s = BreakSchedule()
+        _ = tick(&s, .active, dt: 50)
+        suite.expect(s.state == .counting(50), "active time counts")
+        _ = tick(&s, .busy, dt: 10); _ = tick(&s, .idle, dt: 10, idle: 60)
+        suite.expect(s.state == .counting(70), "busy and short idle count as screen time")
+        _ = tick(&s, .off, dt: 10)
+        suite.expect(s.state == .counting(70), "off freezes the countdown")
+        let crossing = tick(&s, .active, dt: 30)
+        suite.expect(s.state == .due && crossing.isEmpty, "crossing the interval goes due and emits nothing")
+        _ = tick(&s, .off)
+        suite.expect(s.state == .due, "due holds while off")
+        _ = tick(&s, .busy)
+        suite.expect(s.state == .deferred(0), "due while busy defers")
+        _ = tick(&s, .active, dt: 25)
+        suite.expect(s.state == .deferred(25), "deferred counts active grace")
+        _ = tick(&s, .busy)
+        suite.expect(s.state == .deferred(0), "busy restarts the grace")
+        _ = tick(&s, .active, dt: 25)
+        let fired = tick(&s, .active, dt: 5)
+        suite.expect(fired == [.prompt(id)], "30 s of active grace prompts")
+        suite.expect(s.state == .prompting(id: id, seen: false, deadline: nil), "prompting starts unseen")
+
+        // The tick that crosses the interval while the mic is live does not prompt.
+        var m = BreakSchedule(state: .counting(99))
+        let crossBusy = tick(&m, .active, dt: 5)
+        suite.expect(crossBusy.isEmpty && m.state == .due, "the crossing tick never prompts on unsampled signals")
+        _ = tick(&m, .busy)
+        suite.expect(m.state == .deferred(0), "the next tick sees the mic and defers")
+
+        // Due while active prompts on the next tick.
+        var d = BreakSchedule(state: .due)
+        suite.expect(tick(&d, .active) == [.prompt(id)], "due while active prompts")
+
+        // Deadlines start at present time.
+        var p = BreakSchedule(state: .prompting(id: id, seen: false, deadline: nil))
+        _ = tick(&p, .active, now: t0.addingTimeInterval(10_000))
+        suite.expect(p.state == .prompting(id: id, seen: false, deadline: nil), "no deadline before present")
+        p.presented(id: id, deadline: t0.addingTimeInterval(80))
+        suite.expect(tick(&p, .active, now: t0.addingTimeInterval(79)).isEmpty, "before the deadline nothing ends")
+        suite.expect(tick(&p, .active, now: t0.addingTimeInterval(80)) == [.ended(id, advance: true)],
+                     "the deadline ends a seen prompt and advances")
+        suite.expect(p.state == .counting(0), "timeout returns to counting")
+
+        // Busy and off while prompting.
+        var b = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        suite.expect(tick(&b, .busy) == [.ended(id, advance: false)] && b.state == .deferred(0),
+                     "a call starting mid-prompt dismisses and defers")
+        var o = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        suite.expect(tick(&o, .off) == [.ended(id, advance: false)] && o.state == .counting(0),
+                     "pause mid-prompt dismisses and resets")
+
+        // Responses.
+        var r = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        suite.expect(r.respond(id: UUID(), action: .done, now: t0).isEmpty, "a stale id is ignored")
+        suite.expect(r.respond(id: id, action: .snooze, now: t0) == [.ended(id, advance: false)],
+                     "snooze dismisses without advancing")
+        suite.expect(r.state == .snoozed(until: t0.addingTimeInterval(300)), "snooze lasts 5 minutes")
+        _ = tick(&r, .busy, now: t0.addingTimeInterval(100))
+        suite.expect(r.state == .snoozed(until: t0.addingTimeInterval(300)), "snoozed ignores busy before it ends")
+        _ = tick(&r, .active, now: t0.addingTimeInterval(300))
+        suite.expect(r.state == .due, "snooze end goes due")
+        var sOff = BreakSchedule(state: .snoozed(until: t0.addingTimeInterval(300)))
+        _ = tick(&sOff, .off)
+        suite.expect(sOff.state == .counting(0), "off while snoozed resets")
+        var done = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        suite.expect(done.respond(id: id, action: .done, now: t0) == [.ended(id, advance: true)]
+                        && done.state == .counting(0), "done advances and resets")
+
+        // Absence.
+        var a = BreakSchedule(state: .counting(90))
+        _ = tick(&a, .idle, idle: 119)
+        suite.expect(a.state == .counting(95), "an idle stretch under the threshold still counts")
+        _ = tick(&a, .idle, idle: 120)
+        suite.expect(a.state == .counting(0), "idle at max(breakLength, 2 min) resets")
+        for i in 0..<300 { _ = tick(&a, .idle, idle: 125 + Double(i) * 5) }
+        suite.expect(a.state == .counting(0), "25 minutes idle holds the countdown at zero")
+        var aw = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        suite.expect(tick(&aw, .active, away: 180) == [.ended(id, advance: true)] && aw.state == .counting(0),
+                     "an absence while a seen prompt is up counts as taken")
+        var aw2 = BreakSchedule(state: .prompting(id: id, seen: false, deadline: nil))
+        suite.expect(tick(&aw2, .active, away: 180) == [.ended(id, advance: false)],
+                     "an absence over an unseen prompt does not advance")
+        var shortAway = BreakSchedule(state: .counting(50))
+        _ = tick(&shortAway, .active, away: 60)
+        suite.expect(shortAway.state == .counting(55), "a short absence does not reset")
+
+        // Disable and settings change.
+        var off = BreakSchedule(state: .prompting(id: id, seen: true, deadline: nil))
+        var disabled = k; disabled.enabled = false
+        suite.expect(tick(&off, .active, kind: disabled) == [.ended(id, advance: false)] && off.state == .counting(0),
+                     "disabling mid-prompt dismisses and resets")
+        var longer = k; longer.interval = 200
+        var keep = BreakSchedule(state: .counting(150))
+        _ = tick(&keep, .active, kind: longer)
+        suite.expect(keep.state == .counting(155), "a longer interval keeps elapsed time")
+        var shorter = k; shorter.interval = 50
+        var cut = BreakSchedule(state: .counting(60))
+        _ = tick(&cut, .active, kind: shorter)
+        suite.expect(cut.state == .due, "a shorter interval re-checks due")
     }
 }
