@@ -45,6 +45,7 @@ final class BreakReminderService {
         clock.reset(now: Date())
         sinks[.notification] = NotificationBreakDelivery.shared
         sinks[.overlay] = OverlayBreakDelivery.shared
+        sinks[.notch] = NotchBreakDelivery.shared
         let wantsNotifications = [settings.eyes, settings.movement].contains {
             $0.enabled && ($0.style == .notification || $0.style == .escalating)
         }
@@ -149,7 +150,15 @@ final class BreakReminderService {
         execute(coordinator.stopPromptQuietly(id: id))
     }
 
-    private func checkNotchDisplacement(now: Date) { /* filled in Task 11 */ }
+    private func checkNotchDisplacement(now: Date) {
+        guard let id = NotchBreakDelivery.shared.liveID else { return }
+        let notch = NotchService.shared
+        if notchWatch.displaced(id: id, currentCaptureID: notch.currentCaptureID,
+                                visible: notch.isCaptureVisible(id: id), expanded: notch.isExpanded, now: now) {
+            NotchBreakDelivery.shared.dismiss(id: id)
+            sinkDisplaced(id: id, via: .notch)
+        }
+    }
 
     // MARK: Away
 
