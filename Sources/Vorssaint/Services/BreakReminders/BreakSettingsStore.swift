@@ -6,27 +6,30 @@ import Foundation
 enum BreakSettingsStore {
     static let eyesSeedSeconds = [20, 10, 10]
     static let movementSeedSeconds = [60, 60, 120, 30]
+    static let eyesSeedSymbols = ["eye", "eye.slash", "eye.circle"]
+    static let movementSeedSymbols = ["figure.flexibility", "figure.strengthtraining.functional",
+                                      "figure.walk", "figure.cooldown"]
 
     static func load(_ d: UserDefaults, language: AppLanguage) -> BreakSettings {
         let text = FeatureStrings.breakReminders(language)
         func kind(_ enabled: String, _ interval: String, _ length: String, _ style: String, _ list: String,
-                  seed: [String], seconds: [Int], fallback: DeliveryStyle) -> KindSettings {
+                  seed: [String], seconds: [Int], symbols: [String], fallback: DeliveryStyle) -> KindSettings {
             KindSettings(enabled: d.bool(forKey: enabled),
                          interval: TimeInterval(max(1, d.integer(forKey: interval))) * 60,
                          breakLength: TimeInterval(max(5, d.integer(forKey: length))),
                          style: DeliveryStyle(rawValue: d.string(forKey: style) ?? "") ?? fallback,
-                         activities: activities(d.string(forKey: list) ?? "", seed: seed, seconds: seconds))
+                         activities: activities(d.string(forKey: list) ?? "", seed: seed, seconds: seconds, symbols: symbols))
         }
         let paused = d.double(forKey: DefaultsKey.breakRemindersPausedUntil)
         return BreakSettings(
             eyes: kind(DefaultsKey.breakRemindersEyesEnabled, DefaultsKey.breakRemindersEyesIntervalMinutes,
                        DefaultsKey.breakRemindersEyesBreakSeconds, DefaultsKey.breakRemindersEyesDeliveryStyle,
                        DefaultsKey.breakRemindersEyesActivities, seed: text.defaultEyes,
-                       seconds: eyesSeedSeconds, fallback: .notification),
+                       seconds: eyesSeedSeconds, symbols: eyesSeedSymbols, fallback: .notification),
             movement: kind(DefaultsKey.breakRemindersMovementEnabled, DefaultsKey.breakRemindersMovementIntervalMinutes,
                            DefaultsKey.breakRemindersMovementBreakSeconds, DefaultsKey.breakRemindersMovementDeliveryStyle,
                            DefaultsKey.breakRemindersMovementActivities, seed: text.defaultMovement,
-                           seconds: movementSeedSeconds, fallback: .escalating),
+                           seconds: movementSeedSeconds, symbols: movementSeedSymbols, fallback: .escalating),
             escalateAfter: TimeInterval(max(30, d.integer(forKey: DefaultsKey.breakRemindersEscalateAfterSeconds))),
             hours: WorkingHours(enabled: d.bool(forKey: DefaultsKey.breakRemindersWorkingHoursEnabled),
                                 days: d.integer(forKey: DefaultsKey.breakRemindersWorkingDays),
@@ -40,10 +43,14 @@ enum BreakSettingsStore {
     }
 
     /// "" means the user never edited the list: seed from the current language.
-    static func activities(_ json: String, seed: [String], seconds: [Int]) -> [BreakActivity] {
+    static func activities(_ json: String, seed: [String], seconds: [Int],
+                           symbols: [String] = []) -> [BreakActivity] {
         if !json.isEmpty, let data = json.data(using: .utf8),
            let decoded = try? JSONDecoder().decode([BreakActivity].self, from: data) { return decoded }
-        return zip(seed, seconds).map { BreakActivity(id: UUID(), text: $0, seconds: $1) }
+        return zip(seed, seconds).enumerated().map { index, pair in
+            BreakActivity(id: UUID(), text: pair.0, seconds: pair.1,
+                          symbol: index < symbols.count ? symbols[index] : nil)
+        }
     }
 
     static func encode(_ list: [BreakActivity]) -> String {

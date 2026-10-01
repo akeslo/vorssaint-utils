@@ -13,6 +13,7 @@ enum BreakReminderTests {
         store(suite)
         hardening(suite)
         holdOffs(suite)
+        activitySymbols(suite)
         strings(suite)
     }
 
@@ -130,6 +131,20 @@ enum BreakReminderTests {
         suite.expect(r.current(.eyes, in: []) == nil, "empty list returns nil")
         r.advance(.eyes, count: 0)
         suite.expect(r.indices[.eyes] == 0, "advancing an empty list resets the index")
+    }
+
+    static func activitySymbols(_ suite: TestSuite) {
+        let seeded = BreakSettingsStore.activities("", seed: ["a", "b"], seconds: [10, 20], symbols: ["eye"])
+        suite.expect(seeded.map { $0.symbol } == ["eye", nil], "seeds take their symbols by position")
+        let legacy = #"[{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","text":"x","seconds":7}]"#
+        let decoded = BreakSettingsStore.activities(legacy, seed: [], seconds: [])
+        suite.expect(decoded.count == 1 && decoded[0].symbol == nil && decoded[0].text == "x",
+                     "a list saved before symbols existed still loads")
+        let roundTrip = BreakSettingsStore.activities(BreakSettingsStore.encode(seeded), seed: [], seconds: [])
+        suite.expect(roundTrip == seeded, "symbols survive a save")
+        suite.expect(BreakSettingsStore.eyesSeedSymbols.count == BreakSettingsStore.eyesSeedSeconds.count
+                     && BreakSettingsStore.movementSeedSymbols.count == BreakSettingsStore.movementSeedSeconds.count,
+                     "every seeded activity has a symbol")
     }
 
     static func holdOffs(_ suite: TestSuite) {

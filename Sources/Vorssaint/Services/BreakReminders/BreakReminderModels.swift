@@ -11,6 +11,8 @@ struct BreakActivity: Codable, Equatable {
     var id: UUID
     var text: String
     var seconds: Int
+    /// SF Symbol shown on the full-screen overlay; nil uses the kind's default.
+    var symbol: String? = nil
 }
 
 /// `days` bit n = Calendar weekday n+1 (bit 0 = Sunday). Start inclusive, end exclusive.

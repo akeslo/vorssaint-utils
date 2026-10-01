@@ -24,6 +24,7 @@ struct BreakReminderSettings: View {
     @AppStorage(DefaultsKey.breakRemindersHoldForCamera) private var holdCamera = true
     @AppStorage(DefaultsKey.breakRemindersHoldForFullscreen) private var holdFullscreen = true
     @AppStorage(DefaultsKey.breakRemindersResetWhenAway) private var resetWhenAway = true
+    @AppStorage(DefaultsKey.breakRemindersBreathingGuide) private var breathingGuide = false
 
     var body: some View {
         Form {
@@ -43,6 +44,7 @@ struct BreakReminderSettings: View {
                 Stepper(value: $escalateAfter, in: 60...600, step: 60) {
                     Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter, language: l10n.language))")
                 }
+                Toggle(text.breathingGuide, isOn: $breathingGuide)
                 Toggle(text.workingHours, isOn: $hoursOn)
                 if hoursOn {
                     WorkingDaysPicker(days: $days, language: l10n.language)

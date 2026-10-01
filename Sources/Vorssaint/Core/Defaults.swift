@@ -66,6 +66,7 @@ enum DefaultsKey {
     static let breakRemindersHoldForCamera = "breakRemindersHoldForCamera"
     static let breakRemindersHoldForFullscreen = "breakRemindersHoldForFullscreen"
     static let breakRemindersResetWhenAway = "breakRemindersResetWhenAway"
+    static let breakRemindersBreathingGuide = "breakRemindersBreathingGuide"
     static let breakRemindersPausedUntil = "breakRemindersPausedUntil"               // timeIntervalSince1970; 0 = none
     static let notchBreakReminders = "notchBreakReminders"
     static let showCountdown = "showCountdownInMenuBar"
@@ -1176,6 +1177,7 @@ enum Defaults {
         DefaultsKey.breakRemindersHoldForCamera: true,
         DefaultsKey.breakRemindersHoldForFullscreen: true,
         DefaultsKey.breakRemindersResetWhenAway: true,
+        DefaultsKey.breakRemindersBreathingGuide: false,
         DefaultsKey.breakRemindersPausedUntil: 0.0,
         DefaultsKey.notchBreakReminders: true,
         DefaultsKey.showCountdown: false,

@@ -23,6 +23,10 @@ final class OverlayBreakDelivery: BreakDelivery {
 
     private var panels: [UUID: [NSPanel]] = [:]
     private var waiting: [UUID: Timer] = [:]
+    private var finishing: [UUID: [Timer]] = [:]
+
+    /// Pause on the finished ring before closing as done.
+    static let finishHold: TimeInterval = 3
 
     /// True while the prompt waits on secure input; decided once, in present.
     func isDeferring(id: UUID) -> Bool { waiting[id] != nil }
@@ -46,6 +50,7 @@ final class OverlayBreakDelivery: BreakDelivery {
 
     func dismiss(id: UUID) {
         waiting.removeValue(forKey: id)?.invalidate()
+        finishing.removeValue(forKey: id)?.forEach { $0.invalidate() }
         // Not inside the panel's own button action.
         guard let gone = panels.removeValue(forKey: id) else { return }
         DispatchQueue.main.async { gone.forEach { $0.orderOut(nil) } }
@@ -65,11 +70,23 @@ final class OverlayBreakDelivery: BreakDelivery {
             panel.hasShadow = false
             panel.isReleasedWhenClosed = false
             panel.contentView = Host(rootView: BreakOverlayView(
-                title: prompt.activity?.text ?? generic, seconds: prompt.seconds, shownAt: shownAt,
+                title: prompt.activity?.text ?? generic,
+                symbol: prompt.activity?.symbol ?? (prompt.kind == .eyes ? "eye" : "figure.walk"),
+                kind: prompt.kind, seconds: prompt.seconds, shownAt: shownAt,
+                breathing: UserDefaults.standard.bool(forKey: DefaultsKey.breakRemindersBreathingGuide),
                 text: text, respond: respond))
             panel.setFrame(screen.frame, display: true)
             panel.orderFrontRegardless()
             return panel
         }
+        // Once per prompt, not per screen: chime at zero, then close as done.
+        let length = TimeInterval(prompt.seconds)
+        finishing[prompt.id] = [
+            Timer.scheduledTimer(withTimeInterval: length, repeats: false) { _ in NSSound(named: "Glass")?.play() },
+            Timer.scheduledTimer(withTimeInterval: length + Self.finishHold, repeats: false) { [weak self] _ in
+                guard self?.panels[prompt.id] != nil else { return }
+                respond(.done)
+            },
+        ]
     }
 }
