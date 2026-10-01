@@ -12,6 +12,7 @@ enum BreakReminderTests {
         coordinator(suite)
         store(suite)
         hardening(suite)
+        holdOffs(suite)
         strings(suite)
     }
 
@@ -129,6 +130,35 @@ enum BreakReminderTests {
         suite.expect(r.current(.eyes, in: []) == nil, "empty list returns nil")
         r.advance(.eyes, count: 0)
         suite.expect(r.indices[.eyes] == 0, "advancing an empty list resets the index")
+    }
+
+    static func holdOffs(_ suite: TestSuite) {
+        let cal = gregorian
+        let now = date(30, 10)
+        var s = settings()
+        let busy = BreakSignals(micInUse: true, cameraInUse: true, fullscreenFrontmost: true)
+        s.holdOffs = HoldOffs(mic: false, camera: false, fullscreen: false, resetWhenAway: true)
+        suite.expect(BusyPolicy.verdict(busy, settings: s, now: now, calendar: cal) == .active,
+                     "with every hold-off off, mic, camera and fullscreen never defer")
+        s.holdOffs.camera = true
+        suite.expect(BusyPolicy.verdict(busy, settings: s, now: now, calendar: cal) == .busy,
+                     "each hold-off counts on its own")
+        s.holdOffs = HoldOffs(mic: false, camera: true, fullscreen: true, resetWhenAway: true)
+        suite.expect(BusyPolicy.verdict(BreakSignals(micInUse: true), settings: s, now: now, calendar: cal) == .active,
+                     "the mic alone does not defer when its hold-off is off")
+
+        var keep = settings()
+        keep.eyes.interval = 100
+        keep.movement.enabled = false
+        keep.holdOffs.resetWhenAway = false
+        var c = BreakCoordinator(rotation: ActivityRotation())
+        c.forceState(.eyes, .counting(50))
+        _ = c.tick(now: now, dt: 5, verdict: .idle, idleSeconds: 600, awayFor: 900, settings: keep, newID: { UUID() })
+        suite.expect(c.schedules[.eyes]?.state == .counting(55),
+                     "with the away reset off, an absence keeps the countdown")
+        keep.holdOffs.resetWhenAway = true
+        _ = c.tick(now: now, dt: 5, verdict: .idle, idleSeconds: 600, awayFor: 900, settings: keep, newID: { UUID() })
+        suite.expect(c.schedules[.eyes]?.state == .counting(0), "with the away reset on, an absence restarts it")
     }
 
     static func policy(_ suite: TestSuite) {

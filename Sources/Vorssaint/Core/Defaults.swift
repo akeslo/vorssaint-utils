@@ -62,6 +62,10 @@ enum DefaultsKey {
     static let breakRemindersWorkingDays = "breakRemindersWorkingDays"               // bit n = weekday n+1
     static let breakRemindersWorkingStartMinutes = "breakRemindersWorkingStartMinutes"
     static let breakRemindersWorkingEndMinutes = "breakRemindersWorkingEndMinutes"
+    static let breakRemindersHoldForMic = "breakRemindersHoldForMic"
+    static let breakRemindersHoldForCamera = "breakRemindersHoldForCamera"
+    static let breakRemindersHoldForFullscreen = "breakRemindersHoldForFullscreen"
+    static let breakRemindersResetWhenAway = "breakRemindersResetWhenAway"
     static let breakRemindersPausedUntil = "breakRemindersPausedUntil"               // timeIntervalSince1970; 0 = none
     static let notchBreakReminders = "notchBreakReminders"
     static let showCountdown = "showCountdownInMenuBar"
@@ -1168,6 +1172,10 @@ enum Defaults {
         DefaultsKey.breakRemindersWorkingDays: 0b0111110,
         DefaultsKey.breakRemindersWorkingStartMinutes: 540,
         DefaultsKey.breakRemindersWorkingEndMinutes: 1080,
+        DefaultsKey.breakRemindersHoldForMic: true,
+        DefaultsKey.breakRemindersHoldForCamera: true,
+        DefaultsKey.breakRemindersHoldForFullscreen: true,
+        DefaultsKey.breakRemindersResetWhenAway: true,
         DefaultsKey.breakRemindersPausedUntil: 0.0,
         DefaultsKey.notchBreakReminders: true,
         DefaultsKey.showCountdown: false,

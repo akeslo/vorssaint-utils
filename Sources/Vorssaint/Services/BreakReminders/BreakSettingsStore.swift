@@ -32,7 +32,11 @@ enum BreakSettingsStore {
                                 days: d.integer(forKey: DefaultsKey.breakRemindersWorkingDays),
                                 startMinutes: d.integer(forKey: DefaultsKey.breakRemindersWorkingStartMinutes),
                                 endMinutes: d.integer(forKey: DefaultsKey.breakRemindersWorkingEndMinutes)),
-            pausedUntil: paused > 0 ? Date(timeIntervalSince1970: paused) : nil)
+            pausedUntil: paused > 0 ? Date(timeIntervalSince1970: paused) : nil,
+            holdOffs: HoldOffs(mic: d.bool(forKey: DefaultsKey.breakRemindersHoldForMic),
+                               camera: d.bool(forKey: DefaultsKey.breakRemindersHoldForCamera),
+                               fullscreen: d.bool(forKey: DefaultsKey.breakRemindersHoldForFullscreen),
+                               resetWhenAway: d.bool(forKey: DefaultsKey.breakRemindersResetWhenAway)))
     }
 
     /// "" means the user never edited the list: seed from the current language.
@@ -84,5 +88,9 @@ enum BreakSettingsStore {
         d.set(s.hours.startMinutes, forKey: DefaultsKey.breakRemindersWorkingStartMinutes)
         d.set(s.hours.endMinutes, forKey: DefaultsKey.breakRemindersWorkingEndMinutes)
         savePause(s.pausedUntil, to: d)
+        d.set(s.holdOffs.mic, forKey: DefaultsKey.breakRemindersHoldForMic)
+        d.set(s.holdOffs.camera, forKey: DefaultsKey.breakRemindersHoldForCamera)
+        d.set(s.holdOffs.fullscreen, forKey: DefaultsKey.breakRemindersHoldForFullscreen)
+        d.set(s.holdOffs.resetWhenAway, forKey: DefaultsKey.breakRemindersResetWhenAway)
     }
 }

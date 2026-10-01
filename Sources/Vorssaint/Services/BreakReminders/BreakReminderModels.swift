@@ -42,12 +42,22 @@ struct KindSettings: Equatable {
     var resetThreshold: TimeInterval { max(breakLength, 120) }
 }
 
+/// Which signals hold a break off. All on by default.
+struct HoldOffs: Equatable {
+    var mic = true
+    var camera = true
+    var fullscreen = true
+    /// Restart the countdown after an absence (idle, locked, asleep).
+    var resetWhenAway = true
+}
+
 struct BreakSettings: Equatable {
     var eyes: KindSettings
     var movement: KindSettings
     var escalateAfter: TimeInterval
     var hours: WorkingHours
     var pausedUntil: Date?
+    var holdOffs = HoldOffs()
 
     /// The tick only has work while a kind is enabled.
     var needsTick: Bool { eyes.enabled || movement.enabled }

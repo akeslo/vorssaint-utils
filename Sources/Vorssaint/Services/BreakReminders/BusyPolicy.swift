@@ -11,7 +11,10 @@ enum BusyPolicy {
         if let until = settings.pausedUntil, until > now { return .off }
         if !settings.hours.contains(now, calendar: calendar) { return .off }
         if s.idleSeconds >= idleThreshold { return .idle }
-        if s.micInUse || s.cameraInUse || s.fullscreenFrontmost { return .busy }
+        let h = settings.holdOffs
+        if (h.mic && s.micInUse) || (h.camera && s.cameraInUse) || (h.fullscreen && s.fullscreenFrontmost) {
+            return .busy
+        }
         return .active
     }
 

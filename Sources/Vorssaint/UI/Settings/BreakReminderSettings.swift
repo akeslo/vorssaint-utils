@@ -20,6 +20,10 @@ struct BreakReminderSettings: View {
     @AppStorage(DefaultsKey.breakRemindersWorkingDays) private var days = 0b0111110
     @AppStorage(DefaultsKey.breakRemindersWorkingStartMinutes) private var start = 540
     @AppStorage(DefaultsKey.breakRemindersWorkingEndMinutes) private var end = 1080
+    @AppStorage(DefaultsKey.breakRemindersHoldForMic) private var holdMic = true
+    @AppStorage(DefaultsKey.breakRemindersHoldForCamera) private var holdCamera = true
+    @AppStorage(DefaultsKey.breakRemindersHoldForFullscreen) private var holdFullscreen = true
+    @AppStorage(DefaultsKey.breakRemindersResetWhenAway) private var resetWhenAway = true
 
     var body: some View {
         Form {
@@ -29,6 +33,12 @@ struct BreakReminderSettings: View {
             kindSection(text.movementSection, on: $moveOn, every: $moveEvery, everyRange: 15...240,
                         length: $moveLength, lengthRange: 30...900, lengthStep: 15, style: $moveStyle,
                         listKey: DefaultsKey.breakRemindersMovementActivities, kind: .movement)
+            Section(text.holdOffSection) {
+                Toggle(text.holdForMic, isOn: $holdMic)
+                Toggle(text.holdForCamera, isOn: $holdCamera)
+                Toggle(text.holdForFullscreen, isOn: $holdFullscreen)
+                Toggle(text.resetWhenAway, isOn: $resetWhenAway)
+            }
             Section(text.scheduleSection) {
                 Stepper(value: $escalateAfter, in: 60...600, step: 60) {
                     Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter, language: l10n.language))")
@@ -46,7 +56,7 @@ struct BreakReminderSettings: View {
             }
         }
         .formStyle(.grouped)
-        .onChange(of: [eyesOn, moveOn, hoursOn]) { _, _ in BreakReminderService.shared.reloadSettings() }
+        .onChange(of: [eyesOn, moveOn, hoursOn, holdMic, holdCamera, holdFullscreen, resetWhenAway]) { _, _ in BreakReminderService.shared.reloadSettings() }
         .onChange(of: [eyesEvery, eyesLength, moveEvery, moveLength, escalateAfter, days, start, end]) { _, _ in
             BreakReminderService.shared.reloadSettings()
         }

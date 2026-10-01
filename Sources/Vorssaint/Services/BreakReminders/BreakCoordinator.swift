@@ -48,8 +48,12 @@ struct BreakCoordinator {
         guard !stopped else { return [] }
         var out: [Output] = []
         var events: [BreakKind: [BreakSchedule.Event]] = [:]
+        // With the away reset off, absences never restart a countdown; an idle
+        // verdict still defers a due prompt until the user is back.
+        let resets = settings.holdOffs.resetWhenAway
         for kind in [BreakKind.movement, .eyes] {
-            events[kind] = schedules[kind]!.tick(dt: dt, verdict: verdict, idleSeconds: idleSeconds, awayFor: awayFor,
+            events[kind] = schedules[kind]!.tick(dt: dt, verdict: verdict, idleSeconds: resets ? idleSeconds : 0,
+                                                 awayFor: resets ? awayFor : nil,
                                                  settings: settings[kind], now: now, newID: newID)
         }
         for kind in [BreakKind.movement, .eyes] {
