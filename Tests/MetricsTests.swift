@@ -256,6 +256,7 @@ struct MetricsTests {
                 WallpaperThumbnailTests.run(suite)
             }),
             ("emoji", { CommandBarEmojiContract.run(suite) }),
+            ("break-reminders", { BreakReminderTests.run(suite); BreakReminderNotifierContract.run(suite); BreakReminderNotchContract.run(suite) }),
         ]
         var selected = Set<String>()
         var listOnly = false
