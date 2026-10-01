@@ -361,10 +361,6 @@ struct NotchSettings: View {
             switchRow(NotchControlItem.keepAwake.symbol, activities.keepAwakeActivity,
                       caption: activities.keepAwakeActivityHint, isOn: $keepAwakeActivity)
                 .disabled(!AppFeature.keepAwake.isAvailable)
-            if AppFeature.breakReminders.isAvailable {
-                switchRow(AppFeature.breakReminders.symbolName,
-                          FeatureStrings.breakReminders(l10n.language).notchToggle, isOn: $breakReminders)
-            }
         case .music:
             let music = FeatureStrings.notchMusicExtras(l10n.language)
             switchRow("music.note", text.playingMusic, isOn: $showPlayingMusic)
@@ -471,7 +467,7 @@ struct NotchSettings: View {
                 let musicAvailable = NotchSupport.modules().contains(.music)
                 let reserves = ![volumeAvailable, brightnessAvailable, keyboardLightAvailable, microphoneAvailable,
                                  batteryAvailable || !hasBattery, accessoriesAvailable, clipboardAvailable, capturesAvailable,
-                                 musicAvailable].allSatisfy { $0 }
+                                 musicAvailable, AppFeature.breakReminders.isAvailable].allSatisfy { $0 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 10)], spacing: 10) {
                     toggleCard(text.volume, symbol: "speaker.wave.2", value: $volume, available: volumeAvailable,
                                reason: enableFeatureReason(.mixer), reservesReason: reserves,
@@ -516,6 +512,11 @@ struct NotchSettings: View {
                                    if AppFeature.screenshot.isAvailable { showModule(.captures) }
                                    else { showFeature(.screenshot) }
                                })
+                    toggleCard(FeatureStrings.breakReminders(l10n.language).notchToggle,
+                               symbol: AppFeature.breakReminders.symbolName, value: $breakReminders,
+                               available: AppFeature.breakReminders.isAvailable,
+                               reason: enableFeatureReason(.breakReminders), reservesReason: reserves,
+                               unavailableAction: { showFeature(.breakReminders) })
                     toggleCard(text.newTrack, symbol: "music.note", value: $trackChange, available: musicAvailable,
                                reason: editor.showPage(text.music), reservesReason: reserves,
                                unavailableAction: { showModule(.music) })
