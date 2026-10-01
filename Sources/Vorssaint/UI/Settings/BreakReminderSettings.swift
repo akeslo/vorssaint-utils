@@ -190,24 +190,27 @@ struct ActivityListEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text.activities).font(.subheadline.weight(.medium))
             ForEach($list, id: \.id) { $activity in
-                HStack {
+                VStack(alignment: .leading, spacing: 4) {
                     ActivityTextField(label: text.activities, text: activity.text) { newValue in
                         update(activity.id) { $0.text = newValue }
                     }
-                    .frame(minWidth: 220, maxWidth: .infinity)
-                    .layoutPriority(1)
-                    Stepper(value: Binding(get: { activity.seconds },
-                                           set: { newValue in update(activity.id) { $0.seconds = newValue } }),
-                            in: 5...900, step: 5) {
-                        Text(BreakDurationText.seconds(activity.seconds, language: l10n.language)).monospacedDigit()
+                    .frame(maxWidth: .infinity)
+                    HStack {
+                        Stepper(value: Binding(get: { activity.seconds },
+                                               set: { newValue in update(activity.id) { $0.seconds = newValue } }),
+                                in: 5...900, step: 5) {
+                            Text(BreakDurationText.seconds(activity.seconds, language: l10n.language)).monospacedDigit()
+                        }
+                        .fixedSize()
+                        Spacer()
+                        Button(role: .destructive) {
+                            let id = activity.id
+                            commit(list.filter { $0.id != id })
+                        } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless)
                     }
-                    .fixedSize()
-                    Button(role: .destructive) {
-                        let id = activity.id
-                        commit(list.filter { $0.id != id })
-                    } label: { Image(systemName: "trash") }
-                        .buttonStyle(.borderless)
                 }
+                .padding(.vertical, 2)
             }
             Button {
                 commit(list + [BreakActivity(id: UUID(), text: "", seconds: kind == .eyes ? 20 : 60)])
@@ -255,7 +258,8 @@ private struct ActivityTextField: View {
     }
 
     var body: some View {
-        TextField(label, text: $draft)
+        TextField(label, text: $draft, axis: .vertical)
+            .lineLimit(1...3)
             .labelsHidden()
             .accessibilityLabel(label)
             .textFieldStyle(.roundedBorder)
