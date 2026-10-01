@@ -1056,6 +1056,7 @@ extension AppFeature {
         case .scratchpad: return FeatureStrings.scratchpad(L10n.shared.language).pageTitle
         case .commandBar: return FeatureStrings.commandBar(L10n.shared.language).pageTitle
         case .cleaningMode: return s.cleaningMenuItem
+        case .breakReminders: return FeatureStrings.breakReminders(L10n.shared.language).featureTitle
         case .mediaTools: return s.mediaName
         case .cleaner: return s.cleanerName
         case .uninstaller: return s.uninstallerName
@@ -1140,6 +1141,7 @@ extension AppFeature {
         case .scratchpad: return FeatureStrings.scratchpad(L10n.shared.language).hubDescription
         case .commandBar: return FeatureStrings.commandBar(L10n.shared.language).hubDescription
         case .cleaningMode: return hub.descCleaningMode
+        case .breakReminders: return FeatureStrings.breakReminders(L10n.shared.language).featureCaption
         case .mediaTools: return hub.descMediaTools
         case .cleaner:
             let description = hub.descCleaner
