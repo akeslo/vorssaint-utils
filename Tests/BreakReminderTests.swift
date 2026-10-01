@@ -14,6 +14,7 @@ enum BreakReminderTests {
         hardening(suite)
         holdOffs(suite)
         activitySymbols(suite)
+        sounds(suite)
         strings(suite)
     }
 
@@ -131,6 +132,23 @@ enum BreakReminderTests {
         suite.expect(r.current(.eyes, in: []) == nil, "empty list returns nil")
         r.advance(.eyes, count: 0)
         suite.expect(r.indices[.eyes] == 0, "advancing an empty list resets the index")
+    }
+
+    static func sounds(_ suite: TestSuite) {
+        let a = UUID(), b = UUID()
+        var s = BreakSoundState()
+        suite.expect(s.start(a), "a new break plays its start sound")
+        suite.expect(!s.start(a), "a break escalating to another surface does not replay it")
+        suite.expect(s.end(a), "the end sound plays once")
+        suite.expect(!s.end(a), "Done after the countdown already ended does not replay it")
+        suite.expect(s.start(b) && !s.end(a), "a later break replaces the earlier one")
+        s.cancel(b)
+        suite.expect(!s.end(b), "a snoozed or skipped break never plays its end sound")
+        var fresh = BreakSoundState()
+        suite.expect(!fresh.end(a), "no end sound for a break that never started")
+        suite.expect(Defaults.registeredDefaults[DefaultsKey.breakRemindersStartSound] as? String == "Tink"
+                     && Defaults.registeredDefaults[DefaultsKey.breakRemindersEndSound] as? String == "Glass",
+                     "start and end sounds default to Tink and Glass")
     }
 
     static func activitySymbols(_ suite: TestSuite) {

@@ -25,6 +25,8 @@ struct BreakReminderSettings: View {
     @AppStorage(DefaultsKey.breakRemindersHoldForFullscreen) private var holdFullscreen = true
     @AppStorage(DefaultsKey.breakRemindersResetWhenAway) private var resetWhenAway = true
     @AppStorage(DefaultsKey.breakRemindersBreathingGuide) private var breathingGuide = false
+    @AppStorage(DefaultsKey.breakRemindersStartSound) private var startSound = "Tink"
+    @AppStorage(DefaultsKey.breakRemindersEndSound) private var endSound = "Glass"
 
     var body: some View {
         Form {
@@ -44,6 +46,8 @@ struct BreakReminderSettings: View {
                 Stepper(value: $escalateAfter, in: 60...600, step: 60) {
                     Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter, language: l10n.language))")
                 }
+                soundPicker(text.startSound, selection: $startSound)
+                soundPicker(text.endSound, selection: $endSound)
                 Toggle(text.workingHours, isOn: $hoursOn)
                 if hoursOn {
                     WorkingDaysPicker(days: $days, language: l10n.language)
@@ -62,6 +66,19 @@ struct BreakReminderSettings: View {
             BreakReminderService.shared.reloadSettings()
         }
         .onChange(of: [eyesStyle, moveStyle]) { _, _ in BreakReminderService.shared.reloadSettings() }
+    }
+
+    /// None plus the Mac's alert sounds, named as System Settings names them;
+    /// choosing one plays it.
+    private func soundPicker(_ title: String, selection: Binding<String>) -> some View {
+        Picker(title, selection: selection) {
+            Text(text.soundNone).tag("")
+            ForEach(AlertSoundStrings.sortedNames(TextSnippetSupport.alertSoundNames, language: l10n.language),
+                    id: \.self) { name in
+                Text(AlertSoundStrings.displayName(for: name, language: l10n.language)).tag(name)
+            }
+        }
+        .onChange(of: selection.wrappedValue) { _, name in BreakReminderService.play(name) }
     }
 
     @ViewBuilder
