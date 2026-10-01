@@ -162,6 +162,14 @@ struct BreakCoordinator {
         return [.dismiss(current.prompt.id, via: current.via)]
     }
 
+    /// The surface went away with the session: reset with no fallback and no advance.
+    mutating func stopPromptQuietly(id: UUID) -> [Output] {
+        guard let current = live, current.prompt.id == id else { return [] }
+        live = nil
+        _ = schedules[current.prompt.kind]!.reset()
+        return [.dismiss(id, via: current.via)]
+    }
+
     // MARK: Helpers
 
     static func chain(for style: DeliveryStyle) -> [DeliveryStyle] {

@@ -466,6 +466,15 @@ enum BreakReminderTests {
         suite.expect(stopping.deliveryFailed(id: sid2, via: .overlay, now: t0, settings: s).isEmpty,
                      "a fallback after stop presents nothing")
 
+        var quiet = BreakCoordinator(rotation: ActivityRotation())
+        quiet.forceState(.eyes, .due)
+        _ = quiet.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        let qid = quiet.livePromptID!
+        suite.expect(quiet.stopPromptQuietly(id: qid) == [.dismiss(qid, via: .overlay)] &&
+                     quiet.schedules[.eyes]?.state == .counting(0) &&
+                     quiet.rotation.current(.eyes, in: s.eyes.activities)?.text == "look",
+                     "a session close resets without fallback or advance")
+
         // A long call: deferral fires 30 s after it ends.
         var call = BreakCoordinator(rotation: ActivityRotation())
         call.forceState(.eyes, .counting(0))
