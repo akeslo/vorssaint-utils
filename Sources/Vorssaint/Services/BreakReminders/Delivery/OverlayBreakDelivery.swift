@@ -80,10 +80,10 @@ final class OverlayBreakDelivery: BreakDelivery {
             panel.orderFrontRegardless()
             return panel
         }
-        // Once per prompt, not per screen: chime at zero, then close as done.
+        // Once per prompt, not per screen: close as done after the finished ring.
+        // The end sound itself is the service's, so every style plays it.
         let length = TimeInterval(prompt.seconds)
         finishing[prompt.id] = [
-            Timer.scheduledTimer(withTimeInterval: length, repeats: false) { _ in NSSound(named: "Glass")?.play() },
             Timer.scheduledTimer(withTimeInterval: length + Self.finishHold, repeats: false) { [weak self] _ in
                 guard self?.panels[prompt.id] != nil else { return }
                 respond(.done)
