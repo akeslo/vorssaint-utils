@@ -9,6 +9,7 @@ enum BreakReminderTests {
         policy(suite)
         schedule(suite)
         presence(suite)
+        coordinator(suite)
     }
 
     static func activity(_ text: String, _ seconds: Int = 20) -> BreakActivity {
@@ -252,5 +253,178 @@ enum BreakReminderTests {
         _ = seen.displaced(id: id, currentCaptureID: id, visible: true, expanded: true, now: t0.addingTimeInterval(5))
         suite.expect(!seen.displaced(id: id, currentCaptureID: id, visible: false, expanded: true,
                                      now: t0.addingTimeInterval(12)), "becoming visible restarts the timer")
+    }
+
+    static func coordinator(_ suite: TestSuite) {
+        let t0 = date(30, 10)
+        func next() -> UUID { UUID() }
+        func base(eyes: DeliveryStyle = .overlay, movement: DeliveryStyle = .overlay) -> BreakSettings {
+            var s = settings()
+            s.eyes = KindSettings(enabled: true, interval: 100, breakLength: 20, style: eyes,
+                                  activities: [activity("look", 20), activity("close", 10)])
+            s.movement = KindSettings(enabled: true, interval: 300, breakLength: 120, style: movement,
+                                      activities: [activity("stretch", 60)])
+            return s
+        }
+        func run(_ c: inout BreakCoordinator, _ s: BreakSettings, seconds: Int, verdict: BusyVerdict = .active,
+                 from start: Date = t0) -> [BreakCoordinator.Output] {
+            var out: [BreakCoordinator.Output] = []
+            for i in 0..<(seconds / 5) {
+                out += c.tick(now: start.addingTimeInterval(Double(i + 1) * 5), dt: 5, verdict: verdict,
+                              idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+            }
+            return out
+        }
+        func presents(_ o: [BreakCoordinator.Output]) -> [(BreakKind, DeliveryStyle)] {
+            o.compactMap { if case let .present(p, via) = $0 { return (p.kind, via) }; return nil }
+        }
+
+        // Eyes prompts after its interval plus one decision tick.
+        var c = BreakCoordinator(rotation: ActivityRotation())
+        let s = base()
+        let first = run(&c, s, seconds: 105)
+        suite.expect(presents(first).count == 1 && presents(first)[0] == (.eyes, .overlay),
+                     "eyes presents via its style after its interval")
+        guard let live = c.livePromptID else { suite.expect(false, "a live prompt exists"); return }
+        if case let .present(p, _) = first.last! {
+            suite.expect(p.activity?.text == "look" && p.seconds == 20, "the prompt carries the current activity")
+        }
+        c.presented(id: live, via: .overlay, now: t0.addingTimeInterval(105), settings: s)
+        let ended = c.respond(id: live, action: .done, now: t0.addingTimeInterval(110), settings: s)
+        suite.expect(ended == [.dismiss(live, via: .overlay)], "done dismisses the current sink")
+        suite.expect(c.rotation.current(.eyes, in: s.eyes.activities)?.text == "close", "done advances the rotation")
+        suite.expect(c.respond(id: live, action: .done, now: t0, settings: s).isEmpty, "a stale id is ignored")
+
+        // Coalescing: movement prompting resets eyes in every state.
+        for eyesState in [BreakSchedule.State.due, .deferred(10), .snoozed(until: t0.addingTimeInterval(60)),
+                          .counting(45), .prompting(id: UUID(), seen: true, deadline: nil)] {
+            var k = BreakCoordinator(rotation: ActivityRotation())
+            k.forceState(.eyes, eyesState)
+            k.forceState(.movement, .due)
+            let out = k.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: base(),
+                             newID: next)
+            let kinds = presents(out).map { $0.0 }
+            suite.expect(kinds == [.movement], "movement prompting absorbs eyes in state \(eyesState)")
+            suite.expect(k.schedules[.eyes]?.state == .counting(0), "eyes resets when movement prompts (\(eyesState))")
+        }
+        // Eyes may not prompt near or during a movement break.
+        for moveState in [BreakSchedule.State.due, .deferred(5), .snoozed(until: t0.addingTimeInterval(60)),
+                          .counting(250)] {
+            var k = BreakCoordinator(rotation: ActivityRotation())
+            k.forceState(.eyes, .due)
+            k.forceState(.movement, moveState)
+            let out = k.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: base(),
+                             newID: next)
+            suite.expect(presents(out).allSatisfy { $0.0 != .eyes }, "eyes holds off while movement is \(moveState)")
+        }
+        var tie = BreakCoordinator(rotation: ActivityRotation())
+        tie.forceState(.eyes, .due); tie.forceState(.movement, .due)
+        let both = tie.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: base(), newID: next)
+        suite.expect(presents(both).map { $0.0 } == [.movement], "a same-tick tie goes to movement")
+
+        // Fallback chain.
+        var f = BreakCoordinator(rotation: ActivityRotation())
+        f.forceState(.eyes, .due)
+        let notchFirst = base(eyes: .notch)
+        let p0 = f.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: notchFirst, newID: next)
+        suite.expect(presents(p0).map { $0.1 } == [.notch], "requested style first")
+        let pid = f.livePromptID!
+        suite.expect(presents(f.deliveryFailed(id: pid, via: .notch, now: t0, settings: notchFirst)).map { $0.1 } == [.notification],
+                     "notch failure falls through to notification")
+        suite.expect(presents(f.deliveryFailed(id: pid, via: .notification, now: t0, settings: notchFirst)).map { $0.1 } == [.overlay],
+                     "notch failure falls through to notification then overlay")
+        var n = BreakCoordinator(rotation: ActivityRotation())
+        n.forceState(.eyes, .due)
+        let notifFirst = base(eyes: .notification)
+        _ = n.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: notifFirst, newID: next)
+        suite.expect(presents(n.deliveryFailed(id: n.livePromptID!, via: .notification, now: t0, settings: notifFirst)).map { $0.1 }
+                        == [.notch], "a failed notification tries the notch next")
+
+        // Escalation.
+        var e = BreakCoordinator(rotation: ActivityRotation())
+        e.forceState(.movement, .due)
+        let esc = base(movement: .escalating)
+        let e0 = e.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: esc, newID: next)
+        suite.expect(presents(e0).map { $0.1 } == [.notch], "escalating starts at the notch")
+        let eid = e.livePromptID!
+        e.presented(id: eid, via: .notch, now: t0, settings: esc)
+        let early = e.tick(now: t0.addingTimeInterval(119), dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil,
+                           settings: esc, newID: next)
+        suite.expect(early.isEmpty, "no escalation before escalateAfter")
+        let up = e.tick(now: t0.addingTimeInterval(120), dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil,
+                        settings: esc, newID: next)
+        suite.expect(up == [.dismiss(eid, via: .notch), .present(e.prompt(eid)!, via: .overlay)],
+                     "escalation dismisses the current sink and presents the overlay")
+        var dsp = BreakCoordinator(rotation: ActivityRotation())
+        dsp.forceState(.movement, .due)
+        _ = dsp.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: esc, newID: next)
+        let did = dsp.livePromptID!
+        dsp.presented(id: did, via: .notch, now: t0, settings: esc)
+        suite.expect(presents(dsp.displaced(id: did, via: .notch, now: t0, settings: esc)).map { $0.1 } == [.overlay],
+                     "displacement during escalating goes straight to the overlay")
+
+        // Unseen prompts never advance; seen timeouts do.
+        var u = BreakCoordinator(rotation: ActivityRotation())
+        u.forceState(.eyes, .due)
+        _ = u.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        let uid = u.livePromptID!
+        _ = u.tick(now: t0.addingTimeInterval(5), dt: 5, verdict: .busy, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        suite.expect(u.rotation.current(.eyes, in: s.eyes.activities)?.text == "look", "an unseen prompt does not advance")
+        _ = uid
+
+        var to = BreakCoordinator(rotation: ActivityRotation())
+        to.forceState(.eyes, .due)
+        _ = to.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        let tid = to.livePromptID!
+        to.presented(id: tid, via: .overlay, now: t0, settings: s)
+        let timeout = to.tick(now: t0.addingTimeInterval(80), dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil,
+                              settings: s, newID: next)
+        suite.expect(timeout == [.dismiss(tid, via: .overlay)], "overlay times out at seconds + 60 from present")
+        suite.expect(to.rotation.current(.eyes, in: s.eyes.activities)?.text == "close", "a seen timeout advances")
+
+        // Settings changes.
+        var sc = BreakCoordinator(rotation: ActivityRotation())
+        sc.forceState(.eyes, .due)
+        _ = sc.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        let sid = sc.livePromptID!
+        sc.presented(id: sid, via: .overlay, now: t0, settings: s)
+        let restyled = sc.settingsChanged(from: s, to: base(eyes: .notification))
+        suite.expect(restyled.first == .dismiss(sid, via: .overlay) &&
+                     presents(restyled).map { $0.1 } == [.notification] && sc.livePromptID == sid,
+                     "a style change re-presents the same prompt id with the new style")
+        var bothOff = base(); bothOff.eyes.enabled = false; bothOff.movement.enabled = false
+        let killed = sc.tick(now: t0.addingTimeInterval(5), dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil,
+                             settings: bothOff, newID: next)
+        suite.expect(killed == [.dismiss(sid, via: .notification)] && sc.livePromptID == nil,
+                     "disabling both kinds dismisses")
+        _ = run(&sc, bothOff, seconds: 1000, from: t0.addingTimeInterval(10))
+        suite.expect(sc.livePromptID == nil, "nothing re-fires with both kinds disabled")
+
+        var empty = BreakCoordinator(rotation: ActivityRotation())
+        var noActivities = base(); noActivities.eyes.activities = []
+        empty.forceState(.eyes, .due)
+        let generic = empty.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil,
+                                 settings: noActivities, newID: next)
+        if case let .present(p, _)? = generic.first {
+            suite.expect(p.activity == nil && p.seconds == 20, "prompt with empty activity list uses the break length")
+        } else { suite.expect(false, "prompt with empty activity list still presents") }
+
+        var stopping = BreakCoordinator(rotation: ActivityRotation())
+        stopping.forceState(.eyes, .due)
+        _ = stopping.tick(now: t0, dt: 5, verdict: .active, idleSeconds: 0, awayFor: nil, settings: s, newID: next)
+        let sid2 = stopping.livePromptID!
+        suite.expect(stopping.stop() == [.dismiss(sid2, via: .overlay)] && stopping.livePromptID == nil,
+                     "stop dismisses the live prompt")
+        suite.expect(stopping.deliveryFailed(id: sid2, via: .overlay, now: t0, settings: s).isEmpty,
+                     "a fallback after stop presents nothing")
+
+        // A long call: deferral fires 30 s after it ends.
+        var call = BreakCoordinator(rotation: ActivityRotation())
+        call.forceState(.eyes, .counting(0))
+        var single = base(); single.movement.enabled = false
+        let during = run(&call, single, seconds: 5400, verdict: .busy)
+        suite.expect(presents(during).isEmpty, "nothing presents during a 90-minute call")
+        let after = run(&call, single, seconds: 35, from: t0.addingTimeInterval(5400))
+        suite.expect(presents(after).count == 1, "the deferred break fires 30 s after the call ends")
     }
 }
