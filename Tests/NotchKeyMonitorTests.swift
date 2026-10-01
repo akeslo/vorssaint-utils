@@ -195,7 +195,7 @@ enum NotchKeyMonitorTests {
             .filter { !$0.isWhitespace }
         suite.expect([".accessibilityAction(named:service.pinned?text.unpin:text.pin){service.pinned.toggle()}",
                       ".accessibilityAction(named:l10n.s.menuSettings){service.openSettings()}",
-                      ".accessibilityAction(named:text.collapse){service.collapse()}"]
+                      ".accessibilityAction(named:text.collapse){service.collapse(user:true)}"]
                         .allSatisfy(islandSource.contains),
                      "the open island names Keep open, Settings and Collapse as accessibility actions")
         // A top row that cannot wrap the camera takes a row below it, so a

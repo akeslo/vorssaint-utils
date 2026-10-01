@@ -291,7 +291,7 @@ struct NotchView: View {
             // no button of their own in the row; VoiceOver lists them here.
             .accessibilityAction(named: service.pinned ? text.unpin : text.pin) { service.pinned.toggle() }
             .accessibilityAction(named: l10n.s.menuSettings) { service.openSettings() }
-            .accessibilityAction(named: text.collapse) { service.collapse() }
+            .accessibilityAction(named: text.collapse) { service.collapse(user: true) }
             .padding(.top, geometry.pageTopInset - geometry.headerTopInset)
             .overlayPreferenceValue(NotchBandKey.self, alignment: .top) { items in
                 if geometry.headerRowHeight > 0 {
@@ -455,7 +455,7 @@ struct NotchView: View {
             }
         }
         Divider()
-        Button(action: service.collapse) {
+        Button(action: { service.collapse(user: true) }) {
             Label(text.collapse, systemImage: "chevron.up")
         }
     }
