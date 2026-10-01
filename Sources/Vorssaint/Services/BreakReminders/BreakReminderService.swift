@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Vorssaint
 
 import AppKit
+import Carbon.HIToolbox
 
 /// Main thread only. Built lazily by FeatureRuntime; nothing runs while the
 /// feature is uninstalled.
@@ -43,6 +44,7 @@ final class BreakReminderService {
         coordinator = BreakCoordinator(rotation: BreakSettingsStore.loadRotation(defaults))
         clock.reset(now: Date())
         sinks[.notification] = NotificationBreakDelivery.shared
+        sinks[.overlay] = OverlayBreakDelivery.shared
         let wantsNotifications = [settings.eyes, settings.movement].contains {
             $0.enabled && ($0.style == .notification || $0.style == .escalating)
         }
@@ -116,10 +118,18 @@ final class BreakReminderService {
             self.execute(self.coordinator.respond(id: prompt.id, action: action, now: Date(), settings: self.settings))
         } ?? false
         if shown {
+            // The overlay may be waiting on secure input; overlayShownLate starts its timers.
+            if via == .overlay && IsSecureEventInputEnabled() { return }
             coordinator.presented(id: prompt.id, via: via, now: Date(), settings: settings)
         } else {
             execute(coordinator.deliveryFailed(id: prompt.id, via: via, now: Date(), settings: settings))
         }
+    }
+
+    /// The overlay waited on secure input; restart its timers from now.
+    func overlayShownLate(id: UUID) {
+        guard running else { return }
+        coordinator.presented(id: id, via: .overlay, now: Date(), settings: settings)
     }
 
     /// Sinks call these when a shown prompt is lost (Tasks 9–11).
