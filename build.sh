@@ -530,6 +530,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/BreakReminders/BreakReminderModels.swift
         Sources/Vorssaint/Services/BreakReminders/ActivityRotation.swift
         Sources/Vorssaint/Services/BreakReminders/BusyPolicy.swift
+        Sources/Vorssaint/Services/BreakReminders/BreakPresence.swift
         Sources/Vorssaint/Services/BreakReminders/BreakSchedule.swift
         build/generated-tests/*.swift
     )

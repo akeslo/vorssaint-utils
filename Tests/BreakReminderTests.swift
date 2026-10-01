@@ -8,6 +8,7 @@ enum BreakReminderTests {
         rotation(suite)
         policy(suite)
         schedule(suite)
+        presence(suite)
     }
 
     static func activity(_ text: String, _ seconds: Int = 20) -> BreakActivity {
@@ -200,5 +201,56 @@ enum BreakReminderTests {
         var cut = BreakSchedule(state: .counting(60))
         _ = tick(&cut, .active, kind: shorter)
         suite.expect(cut.state == .due, "a shorter interval re-checks due")
+    }
+
+    static func presence(_ suite: TestSuite) {
+        let t0 = date(30, 10)
+        var away = AwayTracker()
+        away.begin(.locked, now: t0)
+        away.begin(.screensAsleep, now: t0.addingTimeInterval(10))
+        suite.expect(away.end(.screensAsleep, now: t0.addingTimeInterval(60)) == nil,
+                     "waking the screen while still locked is still away")
+        suite.expect(away.end(.locked, now: t0.addingTimeInterval(200)) == 200,
+                     "unlock ends the absence once, measured from its first condition")
+        suite.expect(!away.isAway && away.end(.locked, now: t0.addingTimeInterval(300)) == nil,
+                     "a second unlock reports nothing")
+
+        var lost = AwayTracker()
+        lost.begin(.asleep, now: t0)
+        suite.expect(lost.watchdog(now: t0.addingTimeInterval(60), screenLocked: false, idleSeconds: 120) == nil,
+                     "the watchdog waits for real input")
+        suite.expect(lost.watchdog(now: t0.addingTimeInterval(120), screenLocked: true, idleSeconds: 1) == nil,
+                     "the watchdog waits for unlock")
+        suite.expect(lost.watchdog(now: t0.addingTimeInterval(180), screenLocked: false, idleSeconds: 1) == 180,
+                     "a missed wake notification is recovered by the watchdog")
+
+        var clock = TickClock()
+        clock.reset(now: t0)
+        let normal = clock.step(now: t0.addingTimeInterval(5), interval: 5)
+        suite.expect(normal.dt == 5 && normal.gap == nil, "a normal tick counts its time")
+        let gap = clock.step(now: t0.addingTimeInterval(605), interval: 5)
+        suite.expect(gap.dt == 0 && gap.gap == 600, "a gap over 2x the tick becomes an absence")
+        let back = clock.step(now: t0.addingTimeInterval(500), interval: 5)
+        suite.expect(back.dt == 0 && back.gap == nil, "negative and huge gaps never count backwards")
+
+        var watch = NotchBreakWatch()
+        let id = UUID()
+        suite.expect(watch.displaced(id: id, currentCaptureID: UUID(), visible: false, expanded: true, now: t0),
+                     "a replaced capture is displaced at once")
+        suite.expect(!watch.displaced(id: id, currentCaptureID: id, visible: false, expanded: true, now: t0),
+                     "invisibility starts a timer")
+        suite.expect(!watch.displaced(id: id, currentCaptureID: id, visible: false, expanded: true,
+                                      now: t0.addingTimeInterval(9)), "under 10 s is not displaced")
+        suite.expect(watch.displaced(id: id, currentCaptureID: id, visible: false, expanded: true,
+                                     now: t0.addingTimeInterval(10)), "10 s invisible while expanded is displaced")
+        var collapsed = NotchBreakWatch()
+        _ = collapsed.displaced(id: id, currentCaptureID: id, visible: false, expanded: false, now: t0)
+        suite.expect(!collapsed.displaced(id: id, currentCaptureID: id, visible: false, expanded: false,
+                                          now: t0.addingTimeInterval(60)), "a collapsed island is never the watch's call")
+        var seen = NotchBreakWatch()
+        _ = seen.displaced(id: id, currentCaptureID: id, visible: false, expanded: true, now: t0)
+        _ = seen.displaced(id: id, currentCaptureID: id, visible: true, expanded: true, now: t0.addingTimeInterval(5))
+        suite.expect(!seen.displaced(id: id, currentCaptureID: id, visible: false, expanded: true,
+                                     now: t0.addingTimeInterval(12)), "becoming visible restarts the timer")
     }
 }
