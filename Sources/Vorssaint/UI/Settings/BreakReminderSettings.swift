@@ -69,6 +69,12 @@ struct BreakReminderSettings: View {
                 Picker(text.deliveryStyle, selection: style) {
                     ForEach(DeliveryStyle.allCases, id: \.rawValue) { Text(styleName($0)).tag($0.rawValue) }
                 }
+                HStack {
+                    Spacer()
+                    Button {
+                        BreakReminderService.shared.preview(kind)
+                    } label: { Label(text.preview, systemImage: "play.circle") }
+                }
                 ActivityListEditor(listKey: listKey, kind: kind, text: text)
             }
         }
@@ -178,6 +184,8 @@ struct ActivityListEditor: View {
                     ActivityTextField(label: text.activities, text: activity.text) { newValue in
                         update(activity.id) { $0.text = newValue }
                     }
+                    .frame(minWidth: 220, maxWidth: .infinity)
+                    .layoutPriority(1)
                     Stepper(value: Binding(get: { activity.seconds },
                                            set: { newValue in update(activity.id) { $0.seconds = newValue } }),
                             in: 5...900, step: 5) {
@@ -196,6 +204,7 @@ struct ActivityListEditor: View {
             } label: { Label(text.addActivity, systemImage: "plus.circle") }
                 .buttonStyle(.borderless)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear(perform: reload)
         .onChange(of: l10n.language) { _, _ in reload() }
     }

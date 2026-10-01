@@ -93,6 +93,22 @@ final class BreakReminderService {
     }
     func resume() { setPause(nil) }
 
+    /// Shows the kind's current activity through its delivery chain, outside
+    /// the schedule: no countdown, rotation or coordinator state changes, and
+    /// any response just closes it. Escalating previews its first stage.
+    func preview(_ kind: BreakKind) {
+        guard running else { return }
+        settings = BreakSettingsStore.load(defaults, language: L10n.shared.language)
+        let k = settings[kind]
+        let activity = coordinator.rotation.current(kind, in: k.activities)
+        let prompt = BreakPrompt(id: UUID(), kind: kind, activity: activity,
+                                 seconds: activity?.seconds ?? Int(k.breakLength))
+        for style in BreakCoordinator.chain(for: k.style) {
+            guard let sink = sinks[style] else { continue }
+            if sink.present(prompt, respond: { _ in sink.dismiss(id: prompt.id) }) { return }
+        }
+    }
+
     private func setPause(_ until: Date?) {
         BreakSettingsStore.savePause(until, to: defaults)
         settings.pausedUntil = until
