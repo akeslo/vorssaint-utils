@@ -296,7 +296,6 @@ extension AppFeature {
         case .shelf: return FeatureSettingsDestination(.shelf)
         case .urlCleaner: return FeatureSettingsDestination(.urlCleaner)
         case .diskImageInstaller: return FeatureSettingsDestination(.features)
-        // Until its own pane lands (Task 12), the Features page is its home.
         case .breakReminders: return FeatureSettingsDestination(.breakReminders)
 
         case .mixer:

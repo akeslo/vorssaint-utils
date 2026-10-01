@@ -31,15 +31,15 @@ struct BreakReminderSettings: View {
                         listKey: DefaultsKey.breakRemindersMovementActivities, kind: .movement)
             Section(text.scheduleSection) {
                 Stepper(value: $escalateAfter, in: 60...600, step: 60) {
-                    Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter))")
+                    Text("\(text.escalateAfter): \(BreakDurationText.seconds(escalateAfter, language: l10n.language))")
                 }
                 Toggle(text.workingHours, isOn: $hoursOn)
                 if hoursOn {
-                    WorkingDaysPicker(days: $days)
+                    WorkingDaysPicker(days: $days, language: l10n.language)
                     HStack {
-                        MinuteOfDayPicker(minutes: $start, range: 0...max(0, end - 15))
+                        MinuteOfDayPicker(minutes: $start, language: l10n.language, range: 0...max(0, end - 15))
                         Text("–").foregroundStyle(.secondary)
-                        MinuteOfDayPicker(minutes: $end, range: min(1439, start + 15)...1439)
+                        MinuteOfDayPicker(minutes: $end, language: l10n.language, range: min(1439, start + 15)...1439)
                     }
                     Text(text.workingHoursCaption).font(.caption).foregroundStyle(.secondary)
                 }
@@ -61,10 +61,10 @@ struct BreakReminderSettings: View {
             Toggle(text.enabled, isOn: on)
             if on.wrappedValue {
                 Stepper(value: every, in: everyRange, step: 5) {
-                    Text("\(text.interval): \(BreakDurationText.minutes(every.wrappedValue))")
+                    Text("\(text.interval): \(BreakDurationText.minutes(every.wrappedValue, language: l10n.language))")
                 }
                 Stepper(value: length, in: lengthRange, step: lengthStep) {
-                    Text("\(text.breakLength): \(BreakDurationText.seconds(length.wrappedValue))")
+                    Text("\(text.breakLength): \(BreakDurationText.seconds(length.wrappedValue, language: l10n.language))")
                 }
                 Picker(text.deliveryStyle, selection: style) {
                     ForEach(DeliveryStyle.allCases, id: \.rawValue) { Text(styleName($0)).tag($0.rawValue) }
@@ -84,14 +84,31 @@ struct BreakReminderSettings: View {
     }
 }
 
-/// Localized, locale-aware durations for the steppers.
+/// Durations and times in the app's own language, not the system locale.
 enum BreakDurationText {
-    static func seconds(_ value: Int) -> String {
-        Duration.seconds(value).formatted(.units(allowed: [.minutes, .seconds], width: .narrow))
+    static func locale(_ language: AppLanguage) -> Locale { Locale(identifier: language.rawValue) }
+
+    static func calendar(_ language: AppLanguage) -> Calendar {
+        var calendar = Calendar.current
+        calendar.locale = locale(language)
+        return calendar
     }
 
-    static func minutes(_ value: Int) -> String {
-        Duration.seconds(value * 60).formatted(.units(allowed: [.hours, .minutes], width: .narrow))
+    static func seconds(_ value: Int, language: AppLanguage) -> String {
+        Duration.seconds(value).formatted(.units(allowed: [.minutes, .seconds], width: .narrow)
+            .locale(locale(language)))
+    }
+
+    static func minutes(_ value: Int, language: AppLanguage) -> String {
+        Duration.seconds(value * 60).formatted(.units(allowed: [.hours, .minutes], width: .narrow)
+            .locale(locale(language)))
+    }
+
+    static func time(minutes: Int, language: AppLanguage) -> String {
+        let calendar = calendar(language)
+        let date = calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
+        return date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: locale(language),
+                                               calendar: calendar))
     }
 }
 
@@ -99,16 +116,19 @@ enum BreakDurationText {
 /// selected day cannot be cleared, so the mask is never 0.
 struct WorkingDaysPicker: View {
     @Binding var days: Int
+    let language: AppLanguage
+
+    private var calendar: Calendar { BreakDurationText.calendar(language) }
 
     private var weekdayOrder: [Int] {
-        let first = Calendar.current.firstWeekday - 1
+        let first = calendar.firstWeekday - 1
         return (0..<7).map { (first + $0) % 7 }
     }
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(weekdayOrder, id: \.self) { bit in
-                Toggle(Calendar.current.shortWeekdaySymbols[bit], isOn: binding(for: bit))
+                Toggle(calendar.shortWeekdaySymbols[bit], isOn: binding(for: bit))
                     .toggleStyle(.button)
                     .controlSize(.small)
             }
@@ -129,15 +149,12 @@ struct WorkingDaysPicker: View {
 /// stays before the end.
 struct MinuteOfDayPicker: View {
     @Binding var minutes: Int
+    let language: AppLanguage
     let range: ClosedRange<Int>
-
-    private var time: Date {
-        Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
-    }
 
     var body: some View {
         Stepper(value: $minutes, in: range, step: 15) {
-            Text(time, style: .time)
+            Text(BreakDurationText.time(minutes: minutes, language: language))
         }
     }
 }
@@ -158,13 +175,13 @@ struct ActivityListEditor: View {
             Text(text.activities).font(.subheadline.weight(.medium))
             ForEach($list, id: \.id) { $activity in
                 HStack {
-                    TextField("", text: Binding(get: { activity.text },
-                                                set: { newValue in update(activity.id) { $0.text = newValue } }))
-                        .textFieldStyle(.roundedBorder)
+                    ActivityTextField(label: text.activities, text: activity.text) { newValue in
+                        update(activity.id) { $0.text = newValue }
+                    }
                     Stepper(value: Binding(get: { activity.seconds },
                                            set: { newValue in update(activity.id) { $0.seconds = newValue } }),
                             in: 5...900, step: 5) {
-                        Text(BreakDurationText.seconds(activity.seconds)).monospacedDigit()
+                        Text(BreakDurationText.seconds(activity.seconds, language: l10n.language)).monospacedDigit()
                     }
                     .fixedSize()
                     Button(role: .destructive) {
@@ -199,4 +216,35 @@ struct ActivityListEditor: View {
         UserDefaults.standard.set(BreakSettingsStore.encode(next), forKey: listKey)
         BreakReminderService.shared.reloadSettings()
     }
+}
+
+/// Holds the draft locally and commits on return or when focus leaves, so a
+/// keystroke does not rewrite the saved list.
+private struct ActivityTextField: View {
+    let label: String
+    let text: String
+    let commit: (String) -> Void
+
+    @State private var draft: String
+    @FocusState private var focused: Bool
+
+    init(label: String, text: String, commit: @escaping (String) -> Void) {
+        self.label = label
+        self.text = text
+        self.commit = commit
+        _draft = State(initialValue: text)
+    }
+
+    var body: some View {
+        TextField(label, text: $draft)
+            .labelsHidden()
+            .accessibilityLabel(label)
+            .textFieldStyle(.roundedBorder)
+            .focused($focused)
+            .onSubmit(save)
+            .onChange(of: focused) { _, isFocused in if !isFocused { save() } }
+            .onChange(of: text) { _, newValue in if !focused { draft = newValue } }
+    }
+
+    private func save() { if draft != text { commit(draft) } }
 }
