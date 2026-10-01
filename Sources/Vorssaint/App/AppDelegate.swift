@@ -57,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         // guard keeps ad-hoc runs of the bare binary alive for probing.
         if Bundle.main.bundleIdentifier != nil {
             UNUserNotificationCenter.current().delegate = self
+            Notifier.registerCategories()
         }
         beginStartupWatch()
         Self.boundAccessibilityWaits()
@@ -2386,11 +2387,23 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        if let raw = response.notification.request.content.userInfo[Notifier.breakPromptKey] as? String,
+           let id = UUID(uuidString: raw) {
+            NotificationBreakDelivery.shared.handle(id: id, actionIdentifier: response.actionIdentifier)
+            completionHandler()
+            return
+        }
         if let transactionID = Notifier.whatsAppOrganizerTransactionID(from: response) {
             DispatchQueue.main.async {
                 WhatsAppDownloadOrganizer.shared.undoLastRun(transactionID: transactionID)
             }
         }
         completionHandler()
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let isBreak = notification.request.content.userInfo[Notifier.breakPromptKey] != nil
+        completionHandler(isBreak ? [.banner, .sound] : [])
     }
 }

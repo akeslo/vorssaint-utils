@@ -42,6 +42,11 @@ final class BreakReminderService {
         settings = BreakSettingsStore.load(defaults, language: L10n.shared.language)
         coordinator = BreakCoordinator(rotation: BreakSettingsStore.loadRotation(defaults))
         clock.reset(now: Date())
+        sinks[.notification] = NotificationBreakDelivery.shared
+        let wantsNotifications = [settings.eyes, settings.movement].contains {
+            $0.enabled && ($0.style == .notification || $0.style == .escalating)
+        }
+        NotificationBreakDelivery.shared.refreshAuthorization(requestIfUndetermined: wantsNotifications)
         observeSystem()
         timer = Timer.scheduledTimer(withTimeInterval: Self.tickInterval, repeats: true) { [weak self] _ in self?.tick() }
         watchdog = Timer.scheduledTimer(withTimeInterval: Self.watchdogInterval, repeats: true) { [weak self] _ in
@@ -150,6 +155,9 @@ final class BreakReminderService {
         on(ws, NSWorkspace.didWakeNotification) { [weak self] in self?.endAway(.asleep) }
         on(ws, NSWorkspace.screensDidSleepNotification) { [weak self] in self?.beginAway(.screensAsleep) }
         on(ws, NSWorkspace.screensDidWakeNotification) { [weak self] in self?.endAway(.screensAsleep) }
+        on(NotificationCenter.default, NSApplication.didBecomeActiveNotification) {
+            NotificationBreakDelivery.shared.refreshAuthorization(requestIfUndetermined: false)
+        }
         on(dist, Notification.Name("com.apple.screenIsLocked")) { [weak self] in self?.beginAway(.locked) }
         on(dist, Notification.Name("com.apple.screenIsUnlocked")) { [weak self] in self?.endAway(.locked) }
     }
