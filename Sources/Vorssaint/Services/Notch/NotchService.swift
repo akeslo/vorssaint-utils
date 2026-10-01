@@ -1000,9 +1000,7 @@ final class NotchService: ObservableObject {
         guard captureControls == nil, !heldDrag else { return }
         if captureID != nil, captureRoute != .capture {
             let callback = user ? captureCollapsed : captureDisplaced
-            let ownedPin = captureOwnsPin
             clearCapture()
-            if ownedPin { pinned = false }
             callback?()
         }
         hoverState.close(pointerInside: windowHost?.containsHover(NSEvent.mouseLocation) == true)
@@ -1913,6 +1911,12 @@ final class NotchService: ObservableObject {
         let wasExpanded = expanded
         let keepOpen = expanded && self.pinned && !captureOwnsPin
         let inheritedPin = captureOwnsPin
+        // A break losing the slot hears it now, not on the watch's next tick.
+        if captureID != nil, captureRoute != .capture, let outgoing = captureDisplaced {
+            captureDisplaced = nil
+            captureCollapsed = nil
+            outgoing()
+        }
         captureID = id
         captureRoute = route
         captureContentHeight = height

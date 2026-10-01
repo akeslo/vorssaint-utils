@@ -25,8 +25,9 @@ enum BreakReminderNotchContract {
         suite.expect(source.contains("routes(captureRoute)"), "syncWithPreferences keeps a capture on its stored route")
         suite.expect(source.contains("captureRoute == .capture") && source.contains("captureID != nil"),
                      "a break never presents over a live screenshot capture")
-        let userCollapses = source.components(separatedBy: "collapse(user: true)").count - 1
-        suite.expect(userCollapses >= 1 && userCollapses <= 4,
-                     "only the Esc, hide pad and toggle sites collapse as the user")
+        let view = (try? String(contentsOfFile: "Sources/Vorssaint/UI/Notch/NotchView.swift", encoding: .utf8)) ?? ""
+        let userCollapses = (source + view).components(separatedBy: "collapse(user: true)").count - 1
+        // Esc (2), hide pad, toggle, and the island's three Collapse buttons.
+        suite.expect(userCollapses == 7, "only the Esc, hide pad, toggle and Collapse button sites collapse as the user")
     }
 }
