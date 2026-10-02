@@ -53,6 +53,14 @@ enum BreakSettingsStore {
         }
     }
 
+    /// True only for a saved, emptied list. The kind's break length is the
+    /// fallback for that case alone: any activity carries its own seconds.
+    static func usesBreakLength(_ json: String) -> Bool {
+        guard !json.isEmpty, let data = json.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([BreakActivity].self, from: data) else { return false }
+        return decoded.isEmpty
+    }
+
     static func encode(_ list: [BreakActivity]) -> String {
         (try? JSONEncoder().encode(list)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
     }

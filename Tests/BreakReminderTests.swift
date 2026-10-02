@@ -160,6 +160,9 @@ enum BreakReminderTests {
                      "a list saved before symbols existed still loads")
         let roundTrip = BreakSettingsStore.activities(BreakSettingsStore.encode(seeded), seed: [], seconds: [])
         suite.expect(roundTrip == seeded, "symbols survive a save")
+        suite.expect(BreakSettingsStore.usesBreakLength("[]"), "an emptied list falls back to the break length")
+        suite.expect(!BreakSettingsStore.usesBreakLength("") && !BreakSettingsStore.usesBreakLength(legacy),
+                     "seeded or saved activities set their own length")
         suite.expect(BreakSettingsStore.eyesSeedSymbols.count == BreakSettingsStore.eyesSeedSeconds.count
                      && BreakSettingsStore.movementSeedSymbols.count == BreakSettingsStore.movementSeedSeconds.count,
                      "every seeded activity has a symbol")
