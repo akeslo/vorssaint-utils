@@ -27,6 +27,8 @@ struct BreakReminderSettings: View {
     @AppStorage(DefaultsKey.breakRemindersBreathingGuide) private var breathingGuide = false
     @AppStorage(DefaultsKey.breakRemindersStartSound) private var startSound = "Tink"
     @AppStorage(DefaultsKey.breakRemindersEndSound) private var endSound = "Glass"
+    @AppStorage(DefaultsKey.breakRemindersEyesActivities) private var eyesList = ""
+    @AppStorage(DefaultsKey.breakRemindersMovementActivities) private var moveList = ""
 
     var body: some View {
         Form {
@@ -91,8 +93,11 @@ struct BreakReminderSettings: View {
                 Stepper(value: every, in: everyRange, step: 5) {
                     Text("\(text.interval): \(BreakDurationText.minutes(every.wrappedValue, language: l10n.language))")
                 }
-                Stepper(value: length, in: lengthRange, step: lengthStep) {
-                    Text("\(text.breakLength): \(BreakDurationText.seconds(length.wrappedValue, language: l10n.language))")
+                // Each activity sets its own length; this only covers an empty list.
+                if BreakSettingsStore.usesBreakLength(kind == .eyes ? eyesList : moveList) {
+                    Stepper(value: length, in: lengthRange, step: lengthStep) {
+                        Text("\(text.breakLength): \(BreakDurationText.seconds(length.wrappedValue, language: l10n.language))")
+                    }
                 }
                 Picker(text.deliveryStyle, selection: style) {
                     ForEach(DeliveryStyle.allCases, id: \.rawValue) { Text(styleName($0)).tag($0.rawValue) }
