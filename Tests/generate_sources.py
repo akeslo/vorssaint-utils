@@ -1245,7 +1245,8 @@ def main():
           + "extension ScreenshotShareCompletionTests {\nfinal class Controller: State {\n"
           + "".join(declaration(preview, prefix).replace("private func", "func", 1)
                     for prefix in ["    func shareLink()", "    private func performShare(",
-                                   "    private func copySharedLink()", "    private func scheduleAutoDismiss("])
+                                   "    private func copySharedLink()", "    private func scheduleAutoDismiss(",
+                                   "    private func copyText()"])
           + "}\nfinal class Editor: EditorState {\n"
           + declaration("Sources/Vorssaint/Services/QuickTools/ScreenshotEditorController.swift",
                         "    func share(duration:")

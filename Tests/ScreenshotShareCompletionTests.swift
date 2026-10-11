@@ -51,6 +51,16 @@ enum ScreenshotShareCompletionTests {
         func bool(forKey: String) -> Bool { enabled }
     }
 
+    struct PreviewCapture {
+        let image: Int
+    }
+
+    final class ScreenTextService {
+        static let shared = ScreenTextService()
+        var copiedImages: [Int] = []
+        func copyText(from image: Int) { copiedImages.append(image) }
+    }
+
     class EditorState {
         typealias UserDefaults = SharingDefaults
         let model = Model()
@@ -93,6 +103,7 @@ enum ScreenshotShareCompletionTests {
         var onClose: () -> Void = {}
         var shareHandler: ((ScreenshotShareDuration, @escaping @MainActor (ScreenshotShareRecord?) -> Void) -> Void)?
         var closed = false
+        let capture = PreviewCapture(image: 42)
         let model = Model()
         var dismissWork: DispatchWorkItem?
         var baseDismissDuration: TimeInterval? = 12
@@ -245,6 +256,12 @@ enum ScreenshotShareCompletionTests {
         AppFeature.available = true
         SharingDefaults.standard.enabled = true
         service.revoked = []
+        ScreenTextService.shared.copiedImages = []
+        let ocr = Controller()
+        ocr.copyText()
+        ocr.copyText()
+        suite.expect(ocr.closed && ScreenTextService.shared.copiedImages == [ocr.capture.image],
+                     "preview OCR closes once and recognizes the full-resolution capture")
         let open = Controller()
         open.performShare(.oneHour)
         open.completion?(record)

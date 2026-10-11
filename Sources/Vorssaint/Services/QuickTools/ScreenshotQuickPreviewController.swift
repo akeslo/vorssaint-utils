@@ -107,6 +107,7 @@ final class ScreenshotQuickPreviewController {
             copySharedLink: { [weak self] in self?.copySharedLink() },
             deleteSharedLink: { [weak self] in self?.deleteSharedLink() },
             showQR: { [weak self] in self?.showQRResult() },
+            copyText: { [weak self] in self?.copyText() },
             dismiss: { [weak self] in self?.close() },
             hoverChanged: { [weak self] inside in self?.hoverChanged(inside) },
             showsDismissButton: presentationPolicy.showsDismissButton,
@@ -199,6 +200,15 @@ final class ScreenshotQuickPreviewController {
         guard let reading = model.qr else { return }
         close()
         QRResultController.shared.show(reading: reading)
+    }
+
+    /// The screenshot is already available at full resolution, so OCR can
+    /// begin immediately without showing another capture surface.
+    private func copyText() {
+        guard !closed else { return }
+        let image = capture.image
+        close()
+        ScreenTextService.shared.copyText(from: image)
     }
 
     private static func thumbnail(for image: CGImage) -> CGImage {
@@ -519,6 +529,7 @@ private struct ScreenshotQuickPreviewView: View {
     let copySharedLink: () -> Void
     let deleteSharedLink: () -> Void
     let showQR: () -> Void
+    let copyText: () -> Void
     let dismiss: () -> Void
     let hoverChanged: (Bool) -> Void
     let showsDismissButton: Bool
@@ -552,6 +563,7 @@ private struct ScreenshotQuickPreviewView: View {
                 qrControl
                     .transition(.scale.combined(with: .opacity))
             }
+            textControl
             actionButton(symbol: "square.and.arrow.down",
                          title: strings.saveButton,
                          shortcut: "⌘S",
@@ -768,6 +780,18 @@ private struct ScreenshotQuickPreviewView: View {
         .tint(.accentColor)
         .screenshotSafeHelp(L10n.shared.s.qrResultTitle)
         .accessibilityLabel(L10n.shared.s.qrResultTitle)
+    }
+
+    /// Runs OCR against the full-resolution capture and copies its text.
+    private var textControl: some View {
+        Button(action: copyText) {
+            Image(systemName: "text.viewfinder")
+                .frame(width: embedded ? 28 : 22, height: embedded ? 28 : 18)
+        }
+        .modifier(ScreenshotPreviewActionStyle(embedded: embedded))
+        .controlSize(.small)
+        .screenshotSafeHelp(strings.copyTextButton)
+        .accessibilityLabel(strings.copyTextButton)
     }
 
     @ViewBuilder private var shareMenu: some View {
