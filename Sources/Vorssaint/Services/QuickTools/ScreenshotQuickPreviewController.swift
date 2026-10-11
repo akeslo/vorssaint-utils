@@ -205,7 +205,7 @@ final class ScreenshotQuickPreviewController {
     /// The screenshot is already available at full resolution, so OCR can
     /// begin immediately without showing another capture surface.
     private func copyText() {
-        guard !closed else { return }
+        guard !closed, AppFeature.screenOCR.isAvailable else { return }
         let image = capture.image
         close()
         ScreenTextService.shared.copyText(from: image)
@@ -521,6 +521,7 @@ private struct ScreenshotQuickPreviewView: View {
     let image: CGImage
     let strings: ScreenshotFeatureStrings
     @ObservedObject var model: ScreenshotQuickPreviewModel
+    @ObservedObject private var featureRuntime = FeatureRuntime.shared
     let perform: (ScreenshotQuickPreviewController.Action) -> Void
     let dragItem: () -> NSItemProvider
     let share: (ScreenshotShareDuration) -> Void
@@ -563,7 +564,9 @@ private struct ScreenshotQuickPreviewView: View {
                 qrControl
                     .transition(.scale.combined(with: .opacity))
             }
-            textControl
+            if featureRuntime.isAvailable(.screenOCR) {
+                textControl
+            }
             actionButton(symbol: "square.and.arrow.down",
                          title: strings.saveButton,
                          shortcut: "⌘S",

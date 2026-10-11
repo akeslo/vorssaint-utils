@@ -60,8 +60,10 @@ final class ScreenTextService: ObservableObject {
     }
 
     private func recognize(_ image: CGImage, detectQRCodes: Bool) {
+        guard AppFeature.screenOCR.isAvailable else { return }
         recognitionGeneration += 1
         let generation = recognitionGeneration
+        let pasteboardChangeCount = NSPasteboard.general.changeCount
         let removeLineBreaks = UserDefaults.standard.bool(forKey: DefaultsKey.screenOCRRemoveLineBreaks)
         let fallbackLanguages = MediaSupport.recognitionLanguages(for: L10n.shared.language.rawValue)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -70,7 +72,12 @@ final class ScreenTextService: ObservableObject {
                                                     removeLineBreaks: removeLineBreaks,
                                                     fallbackLanguages: fallbackLanguages)
             DispatchQueue.main.async { [weak self] in
-                guard self?.recognitionGeneration == generation else { return }
+                // A later copy belongs to the user, even if this recognition
+                // is still the latest OCR request. Never replace it with a
+                // result from an earlier capture.
+                guard self?.recognitionGeneration == generation,
+                      AppFeature.screenOCR.isAvailable,
+                      NSPasteboard.general.changeCount == pasteboardChangeCount else { return }
                 let strings = L10n.shared.s
                 switch outcome {
                 case .qr(let reading):
