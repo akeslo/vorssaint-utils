@@ -1241,6 +1241,15 @@ def main():
           + "}\n")
 
     preview = "Sources/Vorssaint/Services/QuickTools/ScreenshotQuickPreviewController.swift"
+    screen_text = "Sources/Vorssaint/Services/QuickTools/ScreenTextService.swift"
+    write("ScreenTextCompletion.swift", "import Foundation\n"
+          + "extension ScreenTextCompletionTests {\nfinal class ScreenTextService: State {\n"
+          + "".join(declaration(screen_text, prefix).replace("private func", "func", 1)
+                    for prefix in ["    func copyText(", "    func receiveUnifiedCapture(",
+                                   "    private func recognize(", "    func syncWithPreferences()",
+                                   "    func suspend()", "    private func cancelSession()",
+                                   "    enum Outcome:"])
+          + "}\n}\n")
     write("ScreenshotShareCompletion.swift", "import Foundation\n"
           + "extension ScreenshotShareCompletionTests {\nfinal class Controller: State {\n"
           + "".join(declaration(preview, prefix).replace("private func", "func", 1)

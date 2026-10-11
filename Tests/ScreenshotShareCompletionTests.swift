@@ -152,9 +152,10 @@ enum ScreenshotShareCompletionTests {
     }
 
     enum AppFeature {
-        case screenshot
+        case screenshot, screenOCR
         static var available = true
-        var isAvailable: Bool { Self.available }
+        static var ocrAvailable = true
+        var isAvailable: Bool { self == .screenOCR ? Self.ocrAvailable : Self.available }
     }
 
     enum ScreenshotLastCaptureStore {
@@ -262,6 +263,12 @@ enum ScreenshotShareCompletionTests {
         ocr.copyText()
         suite.expect(ocr.closed && ScreenTextService.shared.copiedImages == [ocr.capture.image],
                      "preview OCR closes once and recognizes the full-resolution capture")
+        AppFeature.ocrAvailable = false
+        let disabledOCR = Controller()
+        disabledOCR.copyText()
+        suite.expect(!disabledOCR.closed && ScreenTextService.shared.copiedImages.count == 1,
+                     "a stale OCR button cannot close the preview or start work after OCR is disabled")
+        AppFeature.ocrAvailable = true
         let open = Controller()
         open.performShare(.oneHour)
         open.completion?(record)
