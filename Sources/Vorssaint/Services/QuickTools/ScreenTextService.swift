@@ -40,8 +40,16 @@ final class ScreenTextService: ObservableObject {
     }
 
     func receiveUnifiedCapture(_ capture: ScreenshotSelectionController.Capture) {
-        recognitionGeneration += 1
-        recognize(capture.image)
+        recognize(capture.image,
+                  detectQRCodes: UserDefaults.standard.bool(
+                    forKey: DefaultsKey.screenOCRDetectQRCodes))
+    }
+
+    /// Copies text from an image that has already been captured. Screenshot
+    /// previews expose QR results separately, so this path deliberately runs
+    /// text recognition even when the image also contains a code.
+    func copyText(from image: CGImage) {
+        recognize(image, detectQRCodes: false)
     }
 
     /// What a captured region turned out to hold.
@@ -51,9 +59,9 @@ final class ScreenTextService: ObservableObject {
         case empty
     }
 
-    private func recognize(_ image: CGImage) {
+    private func recognize(_ image: CGImage, detectQRCodes: Bool) {
+        recognitionGeneration += 1
         let generation = recognitionGeneration
-        let detectQRCodes = UserDefaults.standard.bool(forKey: DefaultsKey.screenOCRDetectQRCodes)
         let removeLineBreaks = UserDefaults.standard.bool(forKey: DefaultsKey.screenOCRRemoveLineBreaks)
         let fallbackLanguages = MediaSupport.recognitionLanguages(for: L10n.shared.language.rawValue)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
