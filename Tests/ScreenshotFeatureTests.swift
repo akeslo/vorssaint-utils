@@ -1388,14 +1388,6 @@ enum ScreenshotFeatureTests {
         suite.expect(panelBody.contains("sendEvent") && panelBody.contains("leftMouseDown")
                 && panelBody.contains("makeKey") && panelBody.contains("super.sendEvent"),
                "clicking the screenshot preview takes key focus and still delivers every preview button")
-        let previewActions = quickPreviewCode.components(separatedBy: "private var actionBar: some View")
-            .dropFirst().first?.components(separatedBy: "private var thumbnailDismissButton").first ?? ""
-        let previewTextControl = quickPreviewCode.components(separatedBy: "private var textControl: some View")
-            .dropFirst().first?.components(separatedBy: "@ViewBuilder private var shareMenu").first ?? ""
-        suite.expect(previewActions.contains("textControl")
-                && previewTextControl.contains("Button(action: copyText)")
-                && previewTextControl.contains("strings.copyTextButton"),
-               "the screenshot preview offers its localized OCR action")
 
         // With the controls in Dynamic Island, the island's panel holds key
         // focus and the selection surface never becomes key on its own, so

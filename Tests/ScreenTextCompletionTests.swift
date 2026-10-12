@@ -35,7 +35,8 @@ enum ScreenTextCompletionTests {
     }
     struct UserDefaults {
         static let standard = Self()
-        func bool(forKey: String) -> Bool { true }
+        static var values: [String: Bool] = [:]
+        func bool(forKey key: String) -> Bool { Self.values[key] ?? false }
     }
     struct L10n {
         static let shared = Self()
@@ -78,6 +79,8 @@ enum ScreenTextCompletionTests {
         DispatchQueue.main = Queue()
         DispatchQueue.background = Queue()
         AppFeature.available = true
+        UserDefaults.values = [DefaultsKey.screenOCRDetectQRCodes: true,
+                               DefaultsKey.screenOCRRemoveLineBreaks: true]
         NSPasteboard.general.value = "original"
         NSPasteboard.general.changeCount = 0
         QuickToolHUD.messages = []
@@ -148,14 +151,36 @@ enum ScreenTextCompletionTests {
         suite.expect(NSPasteboard.general.value == "original" && QuickToolHUD.messages.isEmpty,
                      "suspending OCR suppresses a pending preview result")
 
-        reset()
-        let latest = ScreenTextService()
-        latest.copyText(from: 1)
-        latest.copyText(from: 2)
-        DispatchQueue.background.pending.reverse()
-        finish()
-        suite.expect(NSPasteboard.general.value == "capture 2" && QuickToolHUD.messages == ["copied"],
-                     "a late older OCR result cannot replace the latest request")
+        for newestFirst in [false, true] {
+            reset()
+            let latest = ScreenTextService()
+            latest.copyText(from: 1)
+            latest.copyText(from: 2)
+            if newestFirst { DispatchQueue.background.pending.reverse() }
+            finish()
+            suite.expect(NSPasteboard.general.value == "capture 2" && QuickToolHUD.messages == ["copied"],
+                         "only the latest OCR request copies, with newestFirst=\(newestFirst)")
+        }
+
+        for detectQR in [false, true] {
+            for joinLines in [false, true] {
+                for preview in [false, true] {
+                    reset()
+                    UserDefaults.values = [DefaultsKey.screenOCRDetectQRCodes: detectQR,
+                                           DefaultsKey.screenOCRRemoveLineBreaks: joinLines]
+                    let service = ScreenTextService()
+                    if preview { service.copyText(from: 7) }
+                    else { service.receiveUnifiedCapture(.init(image: 7)) }
+                    finish()
+                    suite.expect(State.requests.count == 1
+                                 && State.requests[0].qr == (preview ? false : detectQR)
+                                 && State.requests[0].joinLines == joinLines,
+                                 "OCR respects QR=\(detectQR), joinLines=\(joinLines), preview=\(preview)")
+                    suite.expect(NSPasteboard.general.value == "capture 7",
+                                 "both entry points still copy text with each preference combination")
+                }
+            }
+        }
 
         reset()
         State.outcomes[1] = .empty
