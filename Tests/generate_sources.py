@@ -1242,6 +1242,19 @@ def main():
 
     preview = "Sources/Vorssaint/Services/QuickTools/ScreenshotQuickPreviewController.swift"
     screen_text = "Sources/Vorssaint/Services/QuickTools/ScreenTextService.swift"
+    write("ScreenshotOCRControl.swift", "import AppKit\nimport SwiftUI\n"
+          + "extension ScreenshotOCRControlTests {\n"
+          + declaration(preview, "final class ScreenshotQuickPreviewModel:")
+          + declaration(preview, "private struct ScreenshotQuickPreviewView:").replace("private struct", "struct", 1)
+          + declaration(preview, "private struct ScreenshotPreviewActionStyle:").replace("private struct", "struct", 1)
+          + declaration("Sources/Vorssaint/UI/Notch/NotchComponents.swift", "struct NotchButtonStyle:")
+          + "enum ScreenshotQuickPreviewController {\n"
+          + declaration(preview, "    enum Action {")
+          + declaration(preview, "    fileprivate static func size(").replace("fileprivate", "", 1)
+          + "}\n}\nextension View {\n"
+          + declaration("Sources/Vorssaint/UI/Screenshot/ScreenshotEditorView.swift", "    func screenshotSafeHelp(")
+              .replace("    func", "    @ViewBuilder\n    func", 1)
+          + "}\n")
     write("ScreenTextCompletion.swift", "import Foundation\n"
           + "extension ScreenTextCompletionTests {\nfinal class ScreenTextService: State {\n"
           + "".join(declaration(screen_text, prefix).replace("private func", "func", 1)
