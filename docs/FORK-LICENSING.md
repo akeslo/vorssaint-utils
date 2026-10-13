@@ -11,7 +11,8 @@ Not legal advice. Audited 2026-10-13 against upstream's LICENSE, TRADEMARKS.md, 
 
 ## GPL duties
 
-- Keep `LICENSE` and every source file's copyright header intact; `scripts/check-carried-licensing.sh` fails if `LICENSE` or `TRADEMARKS.md` differ from upstream.
+- Files I author carry only the `SPDX-License-Identifier: GPL-3.0-or-later` line, with no copyright-holder line: that is left to upstream's maintainer if a file is PRed over. Never remove or edit another author's or upstream's header.
+- Keep `LICENSE` and every upstream file's copyright header intact; `scripts/check-carried-licensing.sh` fails if `LICENSE` or `TRADEMARKS.md` differ from upstream.
 - Publishing a binary requires offering the source. The public repo covers that. Before any binary leaves this machine, also replace the Vorssaint name, bundle ID, icon and update feed (TRADEMARKS.md).
 
 ## Open decisions
