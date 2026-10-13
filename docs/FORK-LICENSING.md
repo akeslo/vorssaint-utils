@@ -5,7 +5,7 @@ Not legal advice. Audited 2026-10-13 against upstream's LICENSE, TRADEMARKS.md, 
 ## Carried PRs (`scripts/adopted-prs.txt`)
 
 - Contributors submit under upstream's GPL-3.0-or-later terms, so carrying their commits is allowed.
-- Keep each author's name on the cherry-pick and credit them in the README's adopted list (generated).
+- Keep each author's name on the cherry-pick and credit them in the README's adopted list (generated). Each carried PR lands on `main` through a merged PR on this fork (`scripts/adopt-pr.sh <n>`, via `scripts/land-pr.sh`), so GitHub keeps who wrote what and the upstream link; sync drops the commits once upstream merges it.
 - Before adding a number, run `scripts/check-carried-licensing.sh <pr>`. It fails on any added license or copyright line other than upstream's own header, mentions of another source, non-system imports, or dependency changes. Fix or reject on a finding.
 - Checked 2026-10-13, all clean (Apple frameworks only, upstream header only): #1879, #2909, #3010, #2966.
 
