@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Keep `custom` = latest upstream/main + my own commits on top.
-# Rebases custom onto upstream/main (commits upstream already has are dropped
+# Keep `main` = latest upstream/main + my own commits on top.
+# Rebases main onto upstream/main (commits upstream already has are dropped
 # by patch-id), runs the test harness, then force-pushes with a lease.
 # Commits of my PRs that upstream has merged are dropped (scripts/prune-merged-prs.sh).
 # Usage: scripts/sync-upstream.sh [--install] [--no-push] [--no-test]
 set -euo pipefail
 
-BRANCH=custom
+BRANCH=main
 INSTALL=0 PUSH=1 TEST=1
 for a in "$@"; do
   case $a in
