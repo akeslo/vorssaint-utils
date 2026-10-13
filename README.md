@@ -72,4 +72,4 @@ Xcode Command Line Tools are the only requirement. There are no official builds 
 
 ## License
 
-[GPL 3.0 or later](LICENSE), copyright 2026 Vorssaint. The license covers the source code; the Vorssaint name, logo and look are covered separately in [TRADEMARKS.md](TRADEMARKS.md), which is why this fork has its own name and logo.
+[GPL 3.0 or later](LICENSE), copyright 2026 Vorssaint. The license covers the source code; the Vorssaint name, logo and look are covered separately in [TRADEMARKS.md](TRADEMARKS.md), which is why this fork has its own name and logo. Rules for carried PRs and GPL duties: [docs/FORK-LICENSING.md](docs/FORK-LICENSING.md).
