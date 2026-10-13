@@ -5,7 +5,8 @@ name: Sync upstream
 #
 # Two jobs on purpose. `test` runs upstream's build and tests, which is
 # arbitrary code from a repo this fork does not control, so it has no secrets.
-# `push` holds SYNC_TOKEN but runs on a fresh runner that never executed that
+# `push` holds the SYNC_DEPLOY_KEY (a deploy key for this repo only, in the `sync`
+# environment) but runs on a fresh runner that never executed that
 # code: it redoes the rebase and only pushes if the result is byte-identical
 # (same tree) to what `test` verified.
 on:
@@ -74,6 +75,9 @@ jobs:
 
   push:
     needs: test
+    # The deploy key lives in this environment, which only the main branch may use;
+    # the test job never references it.
+    environment: sync
     if: needs.test.outputs.moved == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -101,12 +105,15 @@ jobs:
 
       - name: Push
         env:
-          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          SYNC_DEPLOY_KEY: ${{ secrets.SYNC_DEPLOY_KEY }}
         run: |
-          auth=$(printf 'x-access-token:%s' "$SYNC_TOKEN" | base64 | tr -d '\n')
-          echo "::add-mask::$auth"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
-            push --force-with-lease="main:$BEFORE" origin main
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SYNC_DEPLOY_KEY" > ~/.ssh/sync_key
+          chmod 600 ~/.ssh/sync_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/sync_key -o IdentitiesOnly=yes" \
+            git push --force-with-lease="main:$BEFORE" \
+            "git@github.com:${GITHUB_REPOSITORY}.git" main
 
   report:
     needs: [test, push]
