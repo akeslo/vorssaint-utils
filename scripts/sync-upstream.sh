@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 akeslo
 # Keep `custom` = latest upstream/main + my own commits on top.
 # Rebases custom onto upstream/main (commits upstream already has are dropped
 # by patch-id), runs the test harness, then force-pushes with a lease.
