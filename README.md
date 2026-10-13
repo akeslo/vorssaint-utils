@@ -22,23 +22,26 @@ Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssa
 
 Everything else in the app is the original project's. For the full feature list, install options and docs, see [upstream](https://github.com/vorssaint/vorssaint-utils#readme). These are the only things I added on top.
 
-<!-- feature:break-reminders -->
+<!-- upstream-prs -->
+<!-- /upstream-prs -->
+
+<!-- pr:2524 -->
 ### Break reminders
 
 Eye and movement break reminders from the menu bar, with configurable sounds when a break starts and ends. When the activity list is empty, the break length is shown instead. Also offered upstream as [PR #2524](https://github.com/vorssaint/vorssaint-utils/pull/2524).
-<!-- /feature:break-reminders -->
+<!-- /pr:2524 -->
 
-<!-- feature:clipboard-optimizer -->
+<!-- pr:2419 -->
 ### Clipboard optimizer
 
 Shrinks what you copy before you paste it. Images, videos and PDFs each have their own on/off switch, plus conversion settings for HEIC-style images. Also offered upstream as [PR #2419](https://github.com/vorssaint/vorssaint-utils/pull/2419).
-<!-- /feature:clipboard-optimizer -->
+<!-- /pr:2419 -->
 
-<!-- feature:pdf-compressor -->
+<!-- pr:2419 -->
 ### PDF compressor in Media tools
 
 The same PDF engine as the clipboard optimizer, available as a tool in the Media workspace. It tells you when compression wouldn't make a file smaller. Part of the same PR.
-<!-- /feature:pdf-compressor -->
+<!-- /pr:2419 -->
 
 ### Rebase script
 

@@ -1,34 +1,40 @@
 #!/usr/bin/env bash
-# Find fork features whose upstream PR has been merged, so they can be dropped.
-# Rows in scripts/fork-features.tsv: <feature id> <PR number> <subject regex of the feature's commits>.
-#   --list   print "<pr> <regex>" for each merged PR (used by sync-upstream.sh to drop commits)
-#   --apply  remove the merged features' README blocks and tsv rows
-# Test hook: PR_STATE_<number>=MERGED overrides the GitHub lookup.
+# Keep the fork in step with my pull requests on upstream, discovered from GitHub
+# (no list to maintain).
+#   --list   print "<pr>\t<full sha>" for each fork commit that belongs to a merged PR
+#            (matched by commit subject against the PR's own commits)
+#   --apply  rewrite the README's open-PR list and drop the README blocks of merged PRs
+# README blocks to remove on merge are wrapped in <!-- pr:N --> ... <!-- /pr:N -->.
+# Test hook: PRS_JSON overrides the GitHub lookup (gh pr list --json number,title,state,url).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 MODE=${1:---list}
-TSV=scripts/fork-features.tsv
-merged_ids=()
+UP=vorssaint/vorssaint-utils
 
-while IFS=$'\t' read -r id pr regex; do
-  [[ -n "$id" ]] || continue
-  var="PR_STATE_$pr"
-  state=${!var:-$(gh pr view "$pr" --repo vorssaint/vorssaint-utils --json state --jq .state)}
-  [[ "$state" == MERGED ]] || continue
-  merged_ids+=("$id")
-  [[ "$MODE" == --list ]] && printf '%s\t%s\n' "$pr" "$regex"
-done < "$TSV"
+prs=${PRS_JSON:-$(gh pr list --repo "$UP" --author akeslo --state all --limit 100 --json number,title,state,url)}
 
-if [[ "$MODE" == --apply && ${#merged_ids[@]} -gt 0 ]]; then
-  IDS="${merged_ids[*]}" python3 -I - <<'PY'
-import os, re
-ids = os.environ["IDS"].split()
+if [[ "$MODE" == --list ]]; then
+  git log --no-merges --format='%H%x09%s' upstream/main..HEAD > /tmp/own-commits.$$
+  for pr in $(jq -r '.[]|select(.state=="MERGED")|.number' <<<"$prs"); do
+    git fetch -q upstream "pull/$pr/head:refs/pr/$pr" 2>/dev/null || continue
+    git log --no-merges --format=%s "refs/pr/$pr" --not upstream/main > /tmp/pr-subjects.$$ || true
+    # Own commits whose subject the PR also carries.
+    awk -F'\t' -v pr="$pr" 'NR==FNR{s[$0]=1;next} ($2 in s){print pr "\t" $1}' /tmp/pr-subjects.$$ /tmp/own-commits.$$
+  done
+  rm -f /tmp/own-commits.$$ /tmp/pr-subjects.$$
+fi
+
+if [[ "$MODE" == --apply ]]; then
+  PRS="$prs" python3 -I - <<'PY'
+import json, os, re
+prs = json.loads(os.environ["PRS"])
 s = open("README.md", encoding="utf-8").read()
-for i in ids:
-    s = re.sub(rf"<!-- feature:{re.escape(i)} -->.*?<!-- /feature:{re.escape(i)} -->\n*", "", s, flags=re.S)
+for n in [p["number"] for p in prs if p["state"] == "MERGED"]:
+    s = re.sub(rf"<!-- pr:{n} -->.*?<!-- /pr:{n} -->\n*", "", s, flags=re.S)
+open_prs = [p for p in prs if p["state"] == "OPEN"]
+lines = [f'- [#{p["number"]}]({p["url"]}) {p["title"]}' for p in open_prs] or ["- None right now."]
+block = "<!-- upstream-prs -->\nOpen pull requests I have offered upstream:\n\n" + "\n".join(lines) + "\n<!-- /upstream-prs -->"
+s = re.sub(r"<!-- upstream-prs -->.*?<!-- /upstream-prs -->", lambda m: block, s, flags=re.S)
 open("README.md", "w", encoding="utf-8").write(s)
-rows = [l for l in open("scripts/fork-features.tsv") if l.split("\t")[0] not in ids]
-open("scripts/fork-features.tsv", "w").writelines(rows)
 PY
-  printf 'dropped: %s\n' "${merged_ids[*]}"
 fi
