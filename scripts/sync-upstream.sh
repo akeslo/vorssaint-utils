@@ -39,6 +39,11 @@ done
 echo "== my commits on top of upstream/main"
 git log --oneline upstream/main.."$BRANCH"
 
+scripts/stamp-upstream-sync.sh
+if ! git diff --quiet README.md; then
+  git commit --quiet -m "docs(readme): record the latest upstream sync" README.md
+fi
+
 timeout 600 ./build.sh --test
 
 if (( PUSH )); then
