@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 akeslo
 # Rewrite the "last synced with upstream" block in README.md from the commit
 # this branch is currently based on (merge-base with upstream/main).
 # Idempotent: only touches README.md when the stamp changed.
