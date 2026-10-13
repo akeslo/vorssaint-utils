@@ -1,16 +1,18 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/logo-dark.svg">
-    <img src="docs/assets/readme/logo.svg" width="220" alt="Vorssaint logo">
-  </picture>
+  <img src="docs/assets/readme/moonlit.svg" width="220" alt="A small moon orbiting a ringed planet">
 </p>
 
-<h1 align="center">Vorssaint</h1>
+<h1 align="center">Moonlit Utils</h1>
 
 <p align="center">
-  One menu bar icon doing the job of a dozen paid Mac apps.<br>
-  Install only what you use.
+  A small moon in orbit around <a href="https://github.com/vorssaint/vorssaint-utils">Vorssaint</a>.<br>
+  A few extras I wanted, built on someone else's excellent work.
 </p>
+
+> [!NOTE]
+> This is an unofficial, personal fork and is not affiliated with or endorsed by Vorssaint. All the heavy lifting, and nearly all of the code, is the original project's, and it is wonderful. Please use and support [the real thing](https://github.com/vorssaint/vorssaint-utils).
+>
+> The extras here are features I built for myself and found useful, such as break reminders and the clipboard and PDF optimizers. Some of them are offered back upstream as pull requests. This is a passion project, not a product: **I don't plan to maintain it**, so expect no support, roadmap or release schedule. Take what helps, and if you want a polished, maintained app, go to upstream.
 
 <p align="center">
   <a href="https://vorssaint.com">Website</a> ·
