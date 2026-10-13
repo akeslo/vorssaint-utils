@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 akeslo
 # Keep the fork in step with my pull requests on upstream, discovered from GitHub
 # (no list to maintain).
 #   --list   print "<pr>\t<full sha>" for each fork commit that belongs to a merged PR
