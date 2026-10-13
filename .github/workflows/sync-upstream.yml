@@ -1,0 +1,71 @@
+name: Sync upstream
+
+# GitHub cannot trigger a fork's workflow from a push to someone else's repo,
+# so poll: every six hours, and on demand from the Actions tab.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Only the fork runs this; upstream's own copy of the repo never should.
+    if: github.repository == 'akeslo/vorssaint-utils'
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      # A token with contents:write and workflow scope (upstream edits its
+      # workflow files, which the default token may not push).
+      GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: custom
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Identify the committer
+        run: |
+          git config user.name "akeslo"
+          git config user.email "akeslonotifications@gmail.com"
+          git remote add upstream https://github.com/vorssaint/vorssaint-utils.git
+
+      - name: Check whether upstream moved
+        id: check
+        run: |
+          git fetch --quiet upstream
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            echo "custom already contains upstream/main ($(git rev-parse --short upstream/main))"
+          else
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Provide timeout (not on macOS runners)
+        if: steps.check.outputs.moved == 'true'
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Rebase, test and push
+        if: steps.check.outputs.moved == 'true'
+        run: scripts/sync-upstream.sh
+
+      - name: Report a failed sync
+        if: failure() && steps.check.outputs.moved == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Upstream sync needs attention"
+          body="The scheduled sync of \`custom\` onto upstream/main failed (conflict or test failure). Run \`scripts/sync-upstream.sh\` locally. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -z "$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')" ]; then
+            gh issue create --title "$title" --body "$body"
+          fi
