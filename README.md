@@ -23,6 +23,10 @@ Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssa
 Everything else in the app is the original project's. For the full feature list, install options and docs, see [upstream](https://github.com/vorssaint/vorssaint-utils#readme). These are the only things I added on top.
 
 <!-- upstream-prs -->
+Open pull requests I have offered upstream:
+
+- [#2524](https://github.com/vorssaint/vorssaint-utils/pull/2524) feat(break-reminders): add eye and movement break reminders
+- [#2419](https://github.com/vorssaint/vorssaint-utils/pull/2419) feat: optimize copied images, videos and PDFs, and compress PDFs in Media tools
 <!-- /upstream-prs -->
 
 <!-- pr:2524 -->
