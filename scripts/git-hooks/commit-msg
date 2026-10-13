@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Require conventional commit subjects, the same style upstream uses:
+#   type(scope): subject      e.g. fix(menu-bar): place the icon on macOS 26
+# No AI attribution trailers. Enable with: git config core.hooksPath scripts/git-hooks
+subject=$(grep -vE '^\s*(#|$)' "$1" | head -1)
+case "$subject" in Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;; esac
+if ! grep -qE '^(feat|fix|docs|chore|refactor|test|ci|build|perf|style)(\([a-z0-9._/-]+\))?!?: [^ ].*' <<<"$subject"; then
+  echo "commit-msg: subject must look like 'type(scope): subject' (feat fix docs chore refactor test ci build perf style)" >&2
+  echo "  got: $subject" >&2
+  exit 1
+fi
+if [ ${#subject} -gt 72 ]; then echo "commit-msg: subject is over 72 characters" >&2; exit 1; fi
+if grep -qiE '^(co-authored-by:.*(claude|anthropic)|claude-session:|generated with)' "$1"; then
+  echo "commit-msg: no AI attribution trailers in this repo" >&2; exit 1
+fi
