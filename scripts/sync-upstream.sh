@@ -34,7 +34,7 @@ if [[ -n "$merged" ]]; then
   echo "== upstream merged: PR $(cut -f1 <<<"$merged" | sort -u | paste -sd' ' -); dropping their commits"
   drop=$(cut -f2 <<<"$merged" | sort -u | paste -sd'|' -)
   export GIT_SEQUENCE_EDITOR="sed -E -i.bak '/^pick [0-9a-f]+ [a-z]+(${drop//\//\\/})/s/^pick/drop/'"
-  rebase=(git rebase -i upstream/main)
+  rebase=(git rebase -i -f upstream/main)
 else
   rebase=(git rebase upstream/main)
 fi
