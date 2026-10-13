@@ -15,6 +15,11 @@ Not legal advice. Audited 2026-10-13 against upstream's LICENSE, TRADEMARKS.md, 
 - Keep `LICENSE` and every upstream file's copyright header intact; `scripts/check-carried-licensing.sh` fails if `LICENSE` or `TRADEMARKS.md` differ from upstream.
 - Publishing a binary requires offering the source. The public repo covers that. Before any binary leaves this machine, also replace the Vorssaint name, bundle ID, icon and update feed (TRADEMARKS.md).
 
-## Open decisions
+## Artwork
 
-- Upstream's `logo.svg`, `logo-dark.svg` and `Resources/Brand` files are not GPL-licensed. Ask the maintainer or delete the unused ones; never reuse them for fork branding.
+- The app icon, in-app mark and README logo are this fork's own Moonlit artwork (GPL-3.0-or-later), drawn by `Tools/MakeMoonlitArt.swift` and `docs/assets/readme/moonlit.svg`. Upstream's non-GPL logo files were removed from the tree; they remain in git history, which a fork shares with upstream.
+- Never copy upstream's `Resources/Brand` or `docs/assets/readme/logo*` files back in. If a sync conflicts on those paths, keep this fork's version.
+
+## Still to change before any binary leaves this machine
+
+- The app name, bundle ID and update feed are still upstream's (TRADEMARKS.md).
