@@ -25,9 +25,18 @@ Everything else in the app is the original project's. For the full feature list,
 <!-- upstream-prs -->
 Open pull requests I have offered upstream:
 
-- [#2524](https://github.com/vorssaint/vorssaint-utils/pull/2524) feat(break-reminders): add eye and movement break reminders
 - [#2419](https://github.com/vorssaint/vorssaint-utils/pull/2419) feat: optimize copied images, videos and PDFs, and compress PDFs in Media tools
+- [#2524](https://github.com/vorssaint/vorssaint-utils/pull/2524) feat(break-reminders): add eye and movement break reminders
 <!-- /upstream-prs -->
+
+<!-- adopted-prs -->
+Other people's upstream pull requests I carry here until they merge:
+
+- [#1879](https://github.com/vorssaint/vorssaint-utils/pull/1879) feat(port-manager): include UDP listeners, by [@bebricoOOOOOOf](https://github.com/bebricoOOOOOOf)
+- [#2683](https://github.com/vorssaint/vorssaint-utils/pull/2683) feat(cleaner): offer the npx and Bun package caches, by [@PathGao](https://github.com/PathGao)
+- [#2909](https://github.com/vorssaint/vorssaint-utils/pull/2909) fix(disk-image-installer): pops up when installing apps through homebrew, by [@LechTheMitch](https://github.com/LechTheMitch)
+- [#3010](https://github.com/vorssaint/vorssaint-utils/pull/3010) feat(screenshot): copy text from quick preview, by [@PratikPawar1401](https://github.com/PratikPawar1401)
+<!-- /adopted-prs -->
 
 <!-- pr:2524 -->
 ### Break reminders
