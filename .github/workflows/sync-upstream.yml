@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: custom
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 
@@ -48,7 +48,7 @@ jobs:
           git fetch --quiet upstream
           if git merge-base --is-ancestor upstream/main HEAD; then
             echo "moved=false" >> "$GITHUB_OUTPUT"
-            echo "custom already contains upstream/main ($(git rev-parse --short upstream/main))"
+            echo "main already contains upstream/main ($(git rev-parse --short upstream/main))"
           else
             echo "moved=true" >> "$GITHUB_OUTPUT"
           fi
@@ -80,7 +80,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: custom
+          ref: main
           fetch-depth: 0
           persist-credentials: false
 
@@ -106,7 +106,7 @@ jobs:
           auth=$(printf 'x-access-token:%s' "$SYNC_TOKEN" | base64 | tr -d '\n')
           echo "::add-mask::$auth"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
-            push --force-with-lease="custom:$BEFORE" origin custom
+            push --force-with-lease="main:$BEFORE" origin main
 
   report:
     needs: [test, push]
@@ -121,7 +121,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           title="Upstream sync needs attention"
-          body="The scheduled sync of \`custom\` onto upstream/main failed (conflict, test failure or push). Run \`scripts/sync-upstream.sh\` locally. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          body="The scheduled sync of \`main\` onto upstream/main failed (conflict, test failure or push). Run \`scripts/sync-upstream.sh\` locally. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [ -z "$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')" ]; then
             gh issue create --title "$title" --body "$body"
           fi
