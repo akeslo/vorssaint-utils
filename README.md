@@ -63,7 +63,7 @@ The same PDF engine as the clipboard optimizer, available as a tool in the Media
 ## Build it yourself
 
 ```sh
-git clone -b custom https://github.com/akeslo/vorssaint-utils.git
+git clone https://github.com/akeslo/vorssaint-utils.git
 cd vorssaint-utils
 ./build.sh --install
 ```

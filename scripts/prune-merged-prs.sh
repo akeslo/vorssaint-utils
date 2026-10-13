@@ -6,7 +6,7 @@
 #            (matched by commit subject against the PR's own commits)
 #   --apply  rewrite the README's open-PR list and drop the README blocks of merged PRs
 # README blocks to remove on merge are wrapped in <!-- pr:N --> ... <!-- /pr:N -->.
-# Other people's PRs I carry on custom are listed in scripts/adopted-prs.txt (one number per
+# Other people's PRs I carry on main are listed in scripts/adopted-prs.txt (one number per
 # line); they are dropped on merge like mine and credited in the README's adopted-prs block.
 # Test hook: PRS_JSON overrides the GitHub lookup (gh pr list --json number,title,state,url).
 set -euo pipefail
