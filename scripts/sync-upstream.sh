@@ -2,7 +2,7 @@
 # Keep `custom` = latest upstream/main + my own commits on top.
 # Rebases custom onto upstream/main (commits upstream already has are dropped
 # by patch-id), runs the test harness, then force-pushes with a lease.
-# Fork features whose upstream PR has merged are dropped first (scripts/prune-merged-prs.sh).
+# Commits of my PRs that upstream has merged are dropped (scripts/prune-merged-prs.sh).
 # Usage: scripts/sync-upstream.sh [--install] [--no-push] [--no-test]
 set -euo pipefail
 
@@ -32,8 +32,8 @@ echo "== rebasing $BRANCH onto upstream/main ($(git describe --tags upstream/mai
 merged=$(scripts/prune-merged-prs.sh --list)
 if [[ -n "$merged" ]]; then
   echo "== upstream merged: PR $(cut -f1 <<<"$merged" | sort -u | paste -sd' ' -); dropping their commits"
-  drop=$(cut -f2 <<<"$merged" | sort -u | paste -sd'|' -)
-  export GIT_SEQUENCE_EDITOR="sed -E -i.bak '/^pick [0-9a-f]+ (# )?[a-z]+(${drop//\//\\/})/s/^pick/drop/'"
+  export DROP_SHAS=$(cut -f2 <<<"$merged" | paste -sd' ' -)
+  export GIT_SEQUENCE_EDITOR="$PWD/scripts/drop-commits-editor.sh"
   rebase=(git rebase -i -f upstream/main)
 else
   rebase=(git rebase upstream/main)
@@ -46,11 +46,12 @@ fi
   # rerere resolved everything; keep going
   GIT_EDITOR=true git rebase --continue && break
 done
-unset GIT_SEQUENCE_EDITOR
+unset GIT_SEQUENCE_EDITOR DROP_SHAS
 
-if [[ -n "$merged" ]]; then
-  scripts/prune-merged-prs.sh --apply
-  git commit --quiet -m "docs(readme): drop features that merged upstream" README.md scripts/fork-features.tsv
+# Refresh the README's open-PR list and drop sections of merged PRs.
+scripts/prune-merged-prs.sh --apply
+if ! git diff --quiet README.md; then
+  git commit --quiet -m "docs(readme): sync the list of PRs offered upstream" README.md
 fi
 
 echo "== my commits on top of upstream/main"
