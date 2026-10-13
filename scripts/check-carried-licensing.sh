@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright (C) 2026 akeslo
 # Licensing gate for carried PRs and GPL duties. Run before adding a number to
 # scripts/adopted-prs.txt and before publishing any binary. Exit 1 on a finding.
 set -uo pipefail
