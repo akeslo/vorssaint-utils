@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180" role="img" aria-label="A small moon orbiting a ringed planet">
+  <title>Moonlit Utils logo</title>
+  <!-- Original artwork: a ringed planet with one small moon tagging along. -->
+  <ellipse cx="150" cy="96" rx="118" ry="30" transform="rotate(-18 150 96)" fill="none" stroke="#8a93a6" stroke-width="5" stroke-dasharray="2 9" stroke-linecap="round"/>
+  <circle cx="150" cy="96" r="52" fill="#4c8dff"/>
+  <path d="M104 84a52 52 0 0 1 92 -14" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="5" stroke-linecap="round"/>
+  <path d="M40 126C74 150 150 156 224 126" fill="none" stroke="#8a93a6" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(246 46)">
+    <circle r="20" fill="#f5c542"/>
+    <circle cx="-6" cy="-5" r="4" fill="#d9a521"/>
+    <circle cx="7" cy="5" r="3" fill="#d9a521"/>
+    <circle cx="4" cy="-9" r="2" fill="#d9a521"/>
+  </g>
+  <path d="M278 30l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#f5c542"/>
+</svg>
