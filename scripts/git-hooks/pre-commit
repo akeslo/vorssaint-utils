@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Keep the README's upstream-sync stamp current; enable with
+#   git config core.hooksPath scripts/git-hooks
+scripts/stamp-upstream-sync.sh && git add README.md
