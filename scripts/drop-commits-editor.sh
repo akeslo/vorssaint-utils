@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 akeslo
 # GIT_SEQUENCE_EDITOR for sync-upstream.sh: turn "pick" into "drop" for every
 # commit whose full sha is listed in $DROP_SHAS (todo lines carry abbreviated shas).
 todo=$1
