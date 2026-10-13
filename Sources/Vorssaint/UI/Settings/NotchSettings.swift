@@ -608,8 +608,8 @@ struct NotchSettings: View {
                     toggleCard(FeatureStrings.breakReminders(l10n.language).notchToggle,
                                symbol: AppFeature.breakReminders.symbolName, value: $breakReminders,
                                available: AppFeature.breakReminders.isAvailable,
-                               reason: enableFeatureReason(.breakReminders), reservesReason: reserves,
-                               unavailableAction: { showFeature(.breakReminders) })
+                               reason: AppFeature.breakReminders.enableReason(l10n), reservesReason: reserves,
+                               unavailableAction: { AppFeature.breakReminders.showInFeatures() })
                     toggleCard(text.newTrack, symbol: "music.note", value: $trackChange, available: musicAvailable,
                                reason: pageReason(.music, feature: nil), reservesReason: reserves,
                                unavailableAction: pageAction(.music, feature: nil))
