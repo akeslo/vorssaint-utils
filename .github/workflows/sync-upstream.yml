@@ -21,22 +21,20 @@ jobs:
     if: github.repository == 'akeslo/vorssaint-utils'
     runs-on: macos-26
     timeout-minutes: 45
-    env:
-      # A token with contents:write and workflow scope (upstream edits its
-      # workflow files, which the default token may not push).
-      GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: custom
           fetch-depth: 0
-          token: ${{ secrets.SYNC_TOKEN }}
+          # No credentials stay on disk: the test step runs upstream's code.
+          persist-credentials: false
 
       - name: Identify the committer
         run: |
           git config user.name "akeslo"
           git config user.email "akeslonotifications@gmail.com"
           git remote add upstream https://github.com/vorssaint/vorssaint-utils.git
+          echo "BEFORE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Check whether upstream moved
         id: check
@@ -55,9 +53,28 @@ jobs:
           brew install coreutils
           echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
 
-      - name: Rebase, test and push
+      # The rebase only moves commits around, and the script's only network
+      # use is read-only lookups, so the default read-only token is enough.
+      - name: Rebase onto upstream
         if: steps.check.outputs.moved == 'true'
-        run: scripts/sync-upstream.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/sync-upstream.sh --no-push --no-test
+
+      # Upstream's build and tests run arbitrary code: no secrets in scope.
+      - name: Test
+        if: steps.check.outputs.moved == 'true'
+        run: timeout 600 ./build.sh --test
+
+      # Only this step sees SYNC_TOKEN (contents and workflow scope, needed
+      # because upstream edits its own workflow files).
+      - name: Push
+        if: steps.check.outputs.moved == 'true'
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          git push --force-with-lease="custom:$BEFORE" \
+            "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" custom
 
       - name: Report a failed sync
         if: failure() && steps.check.outputs.moved == 'true'
