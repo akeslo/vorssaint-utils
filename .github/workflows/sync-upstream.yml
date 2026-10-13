@@ -2,6 +2,12 @@ name: Sync upstream
 
 # GitHub cannot trigger a fork's workflow from a push to someone else's repo,
 # so poll: every six hours, and on demand from the Actions tab.
+#
+# Two jobs on purpose. `test` runs upstream's build and tests, which is
+# arbitrary code from a repo this fork does not control, so it has no secrets.
+# `push` holds SYNC_TOKEN but runs on a fresh runner that never executed that
+# code: it redoes the rebase and only pushes if the result is byte-identical
+# (same tree) to what `test` verified.
 on:
   schedule:
     - cron: "17 */6 * * *"
@@ -9,24 +15,25 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: sync-upstream
   cancel-in-progress: false
 
 jobs:
-  sync:
+  test:
     # Only the fork runs this; upstream's own copy of the repo never should.
     if: github.repository == 'akeslo/vorssaint-utils'
     runs-on: macos-26
     timeout-minutes: 45
+    outputs:
+      moved: ${{ steps.check.outputs.moved }}
+      tree: ${{ steps.result.outputs.tree }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: custom
           fetch-depth: 0
-          # No credentials stay on disk: the test step runs upstream's code.
           persist-credentials: false
 
       - name: Identify the committer
@@ -34,7 +41,6 @@ jobs:
           git config user.name "akeslo"
           git config user.email "akeslonotifications@gmail.com"
           git remote add upstream https://github.com/vorssaint/vorssaint-utils.git
-          echo "BEFORE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Check whether upstream moved
         id: check
@@ -53,36 +59,69 @@ jobs:
           brew install coreutils
           echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
 
-      # The rebase only moves commits around, and the script's only network
-      # use is read-only lookups, so the default read-only token is enough.
       - name: Rebase onto upstream
         if: steps.check.outputs.moved == 'true'
+        id: result
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/sync-upstream.sh --no-push --no-test
+        run: |
+          scripts/sync-upstream.sh --no-push --no-test
+          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
 
-      # Upstream's build and tests run arbitrary code: no secrets in scope.
       - name: Test
         if: steps.check.outputs.moved == 'true'
         run: timeout 600 ./build.sh --test
 
-      # Only this step sees SYNC_TOKEN (contents and workflow scope, needed
-      # because upstream edits its own workflow files).
+  push:
+    needs: test
+    if: needs.test.outputs.moved == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: custom
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Identify the committer
+        run: |
+          git config user.name "akeslo"
+          git config user.email "akeslonotifications@gmail.com"
+          git remote add upstream https://github.com/vorssaint/vorssaint-utils.git
+          echo "BEFORE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Redo the rebase and compare with what was tested
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTED_TREE: ${{ needs.test.outputs.tree }}
+        run: |
+          scripts/sync-upstream.sh --no-push --no-test
+          test "$(git rev-parse 'HEAD^{tree}')" = "$TESTED_TREE"
+
       - name: Push
-        if: steps.check.outputs.moved == 'true'
         env:
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          git push --force-with-lease="custom:$BEFORE" \
-            "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" custom
+          auth=$(printf 'x-access-token:%s' "$SYNC_TOKEN" | base64 | tr -d '\n')
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force-with-lease="custom:$BEFORE" origin custom
 
-      - name: Report a failed sync
-        if: failure() && steps.check.outputs.moved == 'true'
+  report:
+    needs: [test, push]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue for a failed sync
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           title="Upstream sync needs attention"
-          body="The scheduled sync of \`custom\` onto upstream/main failed (conflict or test failure). Run \`scripts/sync-upstream.sh\` locally. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          body="The scheduled sync of \`custom\` onto upstream/main failed (conflict, test failure or push). Run \`scripts/sync-upstream.sh\` locally. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [ -z "$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')" ]; then
             gh issue create --title "$title" --body "$body"
           fi
