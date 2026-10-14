@@ -15,7 +15,7 @@
 > The extras here are features I built for myself and found useful, such as break reminders and the clipboard and PDF optimizers. Some of them are offered back upstream as pull requests. This is a passion project, not a product: **I don't plan to maintain it**, so expect no support, roadmap or release schedule. Take what helps, and if you want a polished, maintained app, go to upstream.
 
 <!-- upstream-sync -->
-Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils) at [`0b8e9440`](https://github.com/vorssaint/vorssaint-utils/commit/0b8e94404621849ef7da24523e5c16a9815a1bee) on 2026-10-14 ("docs(changelog): record reviewed island and input fixes"), after release v3.4.1.
+Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils) at [`cbb2b77d`](https://github.com/vorssaint/vorssaint-utils/commit/cbb2b77d539b07b6122d86978fe633a111288e50) on 2026-10-14 ("docs(changelog): record reviewed clipboard and app fixes"), after release v3.4.1.
 <!-- /upstream-sync -->
 
 ## What this adds
