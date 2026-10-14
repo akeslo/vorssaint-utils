@@ -35,7 +35,6 @@ Other people's upstream pull requests I carry here until they merge:
 - [#1879](https://github.com/vorssaint/vorssaint-utils/pull/1879) feat(port-manager): include UDP listeners, by [@bebricoOOOOOOf](https://github.com/bebricoOOOOOOf)
 - [#2909](https://github.com/vorssaint/vorssaint-utils/pull/2909) fix(disk-image-installer): pops up when installing apps through homebrew, by [@LechTheMitch](https://github.com/LechTheMitch)
 - [#2966](https://github.com/vorssaint/vorssaint-utils/pull/2966) fix(display): ignore DDC replies for another control, by [@morhaf-ko](https://github.com/morhaf-ko)
-- [#3010](https://github.com/vorssaint/vorssaint-utils/pull/3010) feat(screenshot): copy text from quick preview, by [@PratikPawar1401](https://github.com/PratikPawar1401)
 <!-- /adopted-prs -->
 
 <!-- pr:2524 -->
