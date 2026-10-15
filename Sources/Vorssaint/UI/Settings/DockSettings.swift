@@ -77,11 +77,7 @@ struct DockSettings: View {
     private var dockPreviewCard: some View {
         SettingsCard(title: l10n.s.dockPreviewName) {
             SettingsRow(symbol: "dock.rectangle", title: l10n.s.dockPreviewEnable, caption: dockPreviewCaption) {
-                Toggle(l10n.s.dockPreviewEnable, isOn: $dockPreviewEnabled)
-                    .labelsHidden()
-                    .onChange(of: dockPreviewEnabled) { _, _ in
-                        DockPreviewService.shared.syncWithPreferences()
-                    }
+                EmptyView()
             }
             if dockPreviewEnabled {
                 SettingsRow(symbol: "rectangle.3.group", title: l10n.s.switcherCurrentSpaceOnly,
@@ -184,11 +180,7 @@ struct DockSettings: View {
         SettingsCard {
             SettingsRow(symbol: AppFeature.spacesOrder.symbolName, title: l10n.s.spacesOrderName,
                         caption: l10n.s.spacesOrderCaption) {
-                Toggle(l10n.s.spacesOrderName, isOn: $spacesOrderEnabled)
-                    .labelsHidden()
-                    .onChange(of: spacesOrderEnabled) { _, _ in
-                        SpacesOrderHold.shared.syncWithPreferences()
-                    }
+                EmptyView()
             }
         }
     }
