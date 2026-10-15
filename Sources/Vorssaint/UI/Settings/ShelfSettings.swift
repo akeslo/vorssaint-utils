@@ -24,10 +24,6 @@ struct ShelfSettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle(l10n.s.shelfEnable, isOn: $enabled)
-                    .onChange(of: enabled) { _, _ in
-                        ShelfService.shared.syncWithPreferences()
-                    }
                 Text(l10n.s.shelfEnableCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)

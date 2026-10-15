@@ -32,13 +32,6 @@ struct SuperKeySettings: View {
     var body: some View {
         Form {
             Section(text.pageTitle) {
-                Toggle(text.enableToggle, isOn: $enabled)
-                    .onChange(of: enabled) { _, value in
-                        SuperKeyService.shared.syncWithPreferences()
-                        guard value, !permissions.accessibility else { return }
-                        permissions.requestAccessibility()
-                        permissions.openAccessibilitySettings()
-                    }
                 Picker(text.sourceKey, selection: sourceBinding) {
                     ForEach(SuperKeySource.allCases) { source in
                         Text(text.sourceLabel(source)).tag(source)
