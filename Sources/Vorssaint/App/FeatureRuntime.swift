@@ -102,13 +102,7 @@ final class FeatureRuntime: ObservableObject {
     /// with its extensions all pass through here, with one revision bump.
     func setAvailable(_ features: [AppFeature], _ available: Bool) {
         var changed = false
-        let firstIslandInstall = available && features.contains(.notch)
-            && mayFlip(.notch, to: true)
-            && !UserDefaults.standard.bool(forKey: DefaultsKey.notchInitialExtensionsInstalled)
-        let requested = firstIslandInstall
-            ? features + AppFeature.dynamicIslandInitialExtensions.filter { !features.contains($0) }
-            : features
-        for feature in requested where mayFlip(feature, to: available) {
+        for feature in Self.expandingIsland(features, available) where mayFlip(feature, to: available) {
             Self.write(available, for: feature)
             if available {
                 loadedThisSession.insert(feature)
@@ -117,10 +111,30 @@ final class FeatureRuntime: ObservableObject {
             Self.bindings[feature]?()
             changed = true
         }
-        if firstIslandInstall && AppFeature.notch.isAvailable {
-            UserDefaults.standard.set(true, forKey: DefaultsKey.notchInitialExtensionsInstalled)
-        }
+        if syncIsland() { changed = true }
         if changed { finishAvailabilityChange() }
+    }
+
+    /// The island has no switch of its own: asking for it means its
+    /// extensions. On starts the default set only when none is on yet.
+    private static func expandingIsland(_ features: [AppFeature], _ available: Bool) -> [AppFeature] {
+        guard features.contains(.notch) else { return features }
+        let base = features.filter { $0 != .notch }
+        let anyExtension = AppFeature.dynamicIslandExtensions.contains { $0.isAvailable || base.contains($0) }
+        let extensions = available && !anyExtension
+            ? AppFeature.dynamicIslandInitialExtensions
+            : available ? [] : AppFeature.dynamicIslandExtensions
+        return base + extensions.filter { !base.contains($0) }
+    }
+
+    /// The island runs exactly while at least one extension is on.
+    private func syncIsland() -> Bool {
+        let on = AppFeature.dynamicIslandExtensions.contains(where: \.isAvailable)
+        guard mayFlip(.notch, to: on) else { return false }
+        Self.write(on, for: .notch)
+        if on { loadedThisSession.insert(.notch) }
+        Self.bindings[.notch]?()
+        return true
     }
 
     /// Applies a hub preset additively: its features turn on, with their
@@ -146,11 +160,12 @@ final class FeatureRuntime: ObservableObject {
     /// availability layer as the hub, so unselected features disappear without
     /// losing any of their settings.
     func replaceAvailable(with selected: Set<AppFeature>, enabling keys: [String] = []) {
+        let selected = Set(Self.expandingIsland(Array(selected), true))
         for key in keys {
             UserDefaults.standard.set(true, forKey: key)
         }
-        for feature in AppFeature.allCases
-        where mayFlip(feature, to: selected.contains(feature)) {
+        for feature in AppFeature.allCases where feature != .notch
+        && mayFlip(feature, to: selected.contains(feature)) {
             let joins = selected.contains(feature)
             Self.write(joins, for: feature)
             if joins {
@@ -167,9 +182,7 @@ final class FeatureRuntime: ObservableObject {
         for feature in selected where feature.isAvailable {
             Self.bindings[feature]?()
         }
-        if selected.contains(.notch) && AppFeature.notch.isAvailable {
-            UserDefaults.standard.set(true, forKey: DefaultsKey.notchInitialExtensionsInstalled)
-        }
+        _ = syncIsland()
         finishAvailabilityChange()
     }
 

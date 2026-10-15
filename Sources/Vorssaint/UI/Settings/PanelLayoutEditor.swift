@@ -67,9 +67,7 @@ struct PanelLayoutEditor: View {
                                 isActive: previewSection == id,
                                 isHovered: hovered == id,
                                 isDragging: dragging == id,
-                                // Fan Control is governed by its own toggle on
-                                // Monitor, so it has no separate show/hide here.
-                                showsSwitch: id != .fanControl,
+                                showsSwitch: true,
                                 // Keep at least one section visible.
                                 canHide: visibleSections.count > 1,
                                 dragProvider: {
@@ -97,7 +95,6 @@ struct PanelLayoutEditor: View {
     private var editableOrder: [PanelSectionID] {
         order.filter {
             $0.isAvailable
-                && ($0 != .fanControl || showFanControl)
                 && ($0 != .brightness || brightnessEnabled)
         }
     }

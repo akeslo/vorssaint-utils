@@ -98,8 +98,8 @@ struct NotchMascotSettings: View {
             Spacer(minLength: 12)
             if installed {
                 Button(notch.enable) {
-                    islandEnabled = true
-                    NotchService.shared.syncWithPreferences()
+                    // The island runs while any extension is on, the companion included.
+                    FeatureRuntime.shared.setAvailable([.notchMascot], true)
                 }
             } else {
                 Button(editor.openFeatures) { AppFeature.notch.showInFeatures() }

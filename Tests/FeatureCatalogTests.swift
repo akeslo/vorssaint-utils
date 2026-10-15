@@ -559,6 +559,34 @@ enum FeatureCatalogTests {
             suite.expect(false, "one-switch defaults suite can be created")
         }
 
+        if let island = UserDefaults(suiteName: "com.vorssaint.tests.island-switch") {
+            island.removePersistentDomain(forName: "com.vorssaint.tests.island-switch")
+            island.set(false, forKey: AppFeature.notch.availabilityKey)
+            island.set(true, forKey: AppFeature.notchTimer.availabilityKey)
+            island.set(true, forKey: DefaultsKey.notchTimerEnabled)
+            Defaults.migrateIslandSwitch(in: island)
+            suite.expect(!island.bool(forKey: AppFeature.notchTimer.availabilityKey)
+                         && !island.bool(forKey: DefaultsKey.notchTimerEnabled)
+                         && !island.bool(forKey: AppFeature.notch.availabilityKey),
+                         "an island that was off takes its extensions off")
+            island.removePersistentDomain(forName: "com.vorssaint.tests.island-switch")
+            island.set(true, forKey: AppFeature.notch.availabilityKey)
+            island.set(true, forKey: DefaultsKey.notchEnabled)
+            Defaults.migrateIslandSwitch(in: island)
+            suite.expect(island.bool(forKey: AppFeature.notchGestures.availabilityKey)
+                         && island.bool(forKey: AppFeature.notch.availabilityKey),
+                         "an island that was on with no extension keeps running")
+            island.set(false, forKey: AppFeature.notchGestures.availabilityKey)
+            Defaults.migrateIslandSwitch(in: island)
+            suite.expect(!island.bool(forKey: AppFeature.notchGestures.availabilityKey)
+                         && !island.bool(forKey: AppFeature.notch.availabilityKey)
+                         && !island.bool(forKey: DefaultsKey.notchEnabled),
+                         "after the one-time step the island follows its extensions")
+            island.removePersistentDomain(forName: "com.vorssaint.tests.island-switch")
+        } else {
+            suite.expect(false, "island-switch defaults suite can be created")
+        }
+
         // Most updating installs never saved an availability, so this list is
         // what they have: a feature leaving it would vanish for all of them.
         let installedOnUpdate: Set<String> = [

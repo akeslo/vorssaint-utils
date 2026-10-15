@@ -23,7 +23,6 @@ struct MonitorSettings: View {
     @AppStorage(DefaultsKey.temperatureUnit) private var temperatureUnit = TemperatureUnit.celsius.rawValue
     @AppStorage(DefaultsKey.networkSpeedUnit) private var networkSpeedUnit = NetworkSpeedUnit.bytes
     @AppStorage(DefaultsKey.monitorMemoryMetric) private var memoryMetric = "used"
-    @AppStorage(DefaultsKey.panelShowFanControl) private var showFanControl = true
 
     var body: some View {
         ScrollView {
@@ -239,7 +238,7 @@ struct MonitorSettings: View {
         return SettingsCard {
             SettingsRow(symbol: "fanblades.fill", title: fanStrings.title, badge: l10n.s.betaBadge,
                         caption: fanStrings.settingsCaption) {
-                Toggle(fanStrings.showInPanel, isOn: $showFanControl).labelsHidden()
+                EmptyView() // shown or hidden in General's panel list
             }
             Text(l10n.s.betaFeatureWarning)
                 .font(.caption)
