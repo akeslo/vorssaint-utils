@@ -35,26 +35,22 @@ class SettingsWindow: NSWindow {
         isKeyWindow && attachedSheet == nil && NSApp.modalWindow == nil && !isMouseButtonCaptureActive()
     }
 
-    private func isPageVisible(_ page: SettingsPage) -> Bool {
-        FeatureVisibilitySupport.isPageVisible(page, isAvailable: { $0.isAvailable })
-    }
-
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
-        case #selector(goBack(_:)): return canNavigate && router.canGoBack(isPageVisible: isPageVisible)
-        case #selector(goForward(_:)): return canNavigate && router.canGoForward(isPageVisible: isPageVisible)
+        case #selector(goBack(_:)): return canNavigate && router.canGoBack()
+        case #selector(goForward(_:)): return canNavigate && router.canGoForward()
         default: return super.validateMenuItem(menuItem)
         }
     }
 
     @objc func goBack(_ sender: Any?) {
         guard canNavigate else { return }
-        router.goBack(isPageVisible: isPageVisible)
+        router.goBack()
     }
 
     @objc func goForward(_ sender: Any?) {
         guard canNavigate else { return }
-        router.goForward(isPageVisible: isPageVisible)
+        router.goForward()
     }
 
     override func sendEvent(_ event: NSEvent) {
