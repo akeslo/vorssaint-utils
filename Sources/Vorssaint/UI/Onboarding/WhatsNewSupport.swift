@@ -117,17 +117,14 @@ enum WhatsNewSupport {
         return sections
     }
 
-    /// The Settings sidebar row an installed feature belongs to. Dynamic
-    /// Island extensions, the companion included, live on the island's page;
-    /// a feature Settings files under the General page, or keeps only in the
-    /// Features page, gets a row of its own beside them.
+    /// The Settings sidebar row an installed feature belongs to: its
+    /// category's row, or the General row for a tool Settings keeps on its
+    /// General page. A feature with no such row gets one of its own.
     static func rowID(for feature: AppFeature, in items: [SettingsSidebarItem]) -> WhatsNewRow.ID {
-        let ids = Set(items.map(\.id))
-        if ids.contains(.feature(feature)) { return .settings(.feature(feature)) }
-        let page = feature.settingsDestination.page
-        if page == .general { return .general }
-        if page != .features, ids.contains(.page(page)) { return .settings(.page(page)) }
-        if feature.group == .dynamicIsland, ids.contains(.page(.notch)) { return .settings(.page(.notch)) }
+        if feature.settingsDestination.page == .general { return .general }
+        if items.contains(where: { $0.id == .category(feature.group) }) {
+            return .settings(.category(feature.group))
+        }
         return .feature(feature)
     }
 
@@ -147,21 +144,17 @@ enum WhatsNewSupport {
         }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// The one feature a Settings row stands for, if any: a tool row, or a
-    /// page that belongs to a single feature (the Dynamic Island page counts
-    /// as the island's, not its extensions'). The System Monitor page holds
-    /// several and stands for none.
+    /// The one feature a Settings row stands for, if any: a page that
+    /// belongs to a single feature (the Dynamic Island page counts as the
+    /// island's, not its extensions'). Category rows and the System Monitor
+    /// page hold several and stand for none.
     static func representedFeature(of id: SettingsSidebarItem.ID) -> AppFeature? {
-        switch id {
-        case .feature(let feature): return feature
-        case .page(let page):
-            let owners = AppFeature.allCases.filter {
-                $0.settingsDestination == FeatureSettingsDestination(page)
-                    && !AppFeature.dynamicIslandExtensions.contains($0)
-            }
-            return owners.count == 1 ? owners[0] : nil
-        case .setting: return nil
+        if case .category = id { return nil }
+        let owners = AppFeature.allCases.filter {
+            $0.settingsDestination == FeatureSettingsDestination(id)
+                && !AppFeature.dynamicIslandExtensions.contains($0)
         }
+        return owners.count == 1 ? owners[0] : nil
     }
 
     private static func navigableDestination(of feature: AppFeature) -> FeatureSettingsDestination? {

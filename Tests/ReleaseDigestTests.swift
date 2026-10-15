@@ -262,18 +262,9 @@ enum ReleaseDigestTests {
     }
 
     private static func checkSections(_ suite: TestSuite) {
-        func item(_ id: SettingsSidebarItem.ID, _ title: String) -> SettingsSidebarItem {
-            let destination: FeatureSettingsDestination
-            switch id {
-            case .feature(let feature): destination = feature.settingsDestination
-            case .page(let page): destination = FeatureSettingsDestination(page)
-            case .setting(let anchor): destination = FeatureSettingsDestination(anchor.page, sectionAnchor: anchor)
-            }
-            return SettingsSidebarItem(id: id, destination: destination, title: title, icon: "circle")
-        }
-        let items = [item(.page(.general), "General"), item(.page(.features), "Features"),
-                     item(.page(.notch), "Dynamic Island"), item(.page(.monitor), "System Monitor"),
-                     item(.feature(.switcher), "Window switcher"), item(.feature(.mixer), "Volume mixer")]
+        let items = [SettingsSidebarItem(id: .general, title: "General", icon: "circle")]
+            + FeatureGroup.allCases.map { SettingsSidebarItem(id: .category($0), title: "\($0)", icon: "circle") }
+        func row(_ feature: AppFeature) -> WhatsNewRow.ID { .settings(.category(feature.group)) }
         func change(_ text: String, _ kind: ReleaseChangeKind, _ features: [AppFeature]) -> ReleaseChange {
             ReleaseChange(text: text, kind: kind, version: "3.4.2", features: features)
         }
@@ -296,13 +287,13 @@ enum ReleaseDigestTests {
         suite.expect(sections.newFeatures.map(\.id) == [.newFeature(.portManager)]
                         && sections.newFeatures.first?.changes == [ports],
                      "new features come first with the entries that name them")
-        suite.expect(sections.yourFeatures.map(\.id) == [.settings(.page(.notch)), .settings(.page(.monitor)),
-                                                         .settings(.feature(.switcher)),
-                                                         .feature(.diskImageInstaller), .general],
+        let hit = Set([AppFeature.notch, .monitorGPU, .switcher, .diskImageInstaller].map(\.group))
+        suite.expect(sections.yourFeatures.map(\.id)
+                        == FeatureGroup.allCases.filter(hit.contains).map { .settings(.category($0)) } + [.general],
                      "installed features follow the Settings order, app-wide changes last")
-        suite.expect(sections.yourFeatures.first?.changes == [lyrics, island],
+        suite.expect(sections.yourFeatures.first { $0.id == row(.notch) }?.changes == [lyrics, island],
                      "Dynamic Island's row gathers its installed extensions")
-        suite.expect(sections.yourFeatures.first { $0.id == .settings(.feature(.switcher)) }?.changes == [switcher, ports],
+        suite.expect(sections.yourFeatures.first { $0.id == row(.switcher) }?.changes.prefix(2) == [switcher, ports],
                      "an entry naming a new feature still shows under the installed one beside it")
         suite.expect(sections.notInstalled.map(\.id)
                         == [.notInstalled(.keepAwake), .notInstalled(.notchCalendar), .notInstalled(.fanControl)],
@@ -326,13 +317,13 @@ enum ReleaseDigestTests {
         suite.expect(!elsewhere.hasContentForYou && elsewhere.notInstalled.count == 1,
                      "an update only about missing features has nothing for this Mac")
 
-        suite.expect(WhatsNewSupport.rowID(for: .notchMascot, in: items) == .settings(.page(.notch)),
+        suite.expect(WhatsNewSupport.rowID(for: .notchMascot, in: items) == row(.notch),
                      "the companion belongs to the island's row")
         suite.expect(WhatsNewSupport.rowID(for: .soundOutputSwitcher, in: items) == .general,
                      "a tool Settings keeps on its General page joins the General row")
-        suite.expect(WhatsNewSupport.representedFeature(of: .page(.notch)) == .notch
-                        && WhatsNewSupport.representedFeature(of: .page(.monitor)) == nil
-                        && WhatsNewSupport.representedFeature(of: .feature(.mixer)) == .mixer,
+        suite.expect(WhatsNewSupport.representedFeature(of: .notch) == .notch
+                        && WhatsNewSupport.representedFeature(of: .monitor) == nil
+                        && WhatsNewSupport.representedFeature(of: .category(AppFeature.mixer.group)) == nil,
                      "a row stands for one feature only when it has one")
         suite.expect(WhatsNewSupport.grouped([gpu, switcher, island]).map(\.kind) == [.new, .changed, .fixed],
                      "a feature's page lists new, then changed, then fixed")

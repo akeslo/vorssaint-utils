@@ -9,9 +9,12 @@ struct FeatureCategorySettings: View {
     let group: FeatureGroup
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var features = FeatureRuntime.shared
+    @ObservedObject private var router = SettingsRouter.shared
+    @State private var expanded: Set<AppFeature> = []
 
     var body: some View {
         let members = AppFeature.features(in: group)
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
@@ -21,12 +24,29 @@ struct FeatureCategorySettings: View {
                         .font(.callout.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
-                ForEach(members, id: \.self) { FeatureRow(feature: $0) }
+                ForEach(members, id: \.self) { feature in
+                    FeatureRow(feature: feature, expanded: Binding(
+                        get: { expanded.contains(feature) },
+                        set: { if $0 { expanded.insert(feature) } else { expanded.remove(feature) } }))
+                        .id(feature)
+                }
             }
             .frame(maxWidth: 760)
             .frame(maxWidth: .infinity)
             .padding(22)
         }
+        .onAppear { reveal(proxy) }
+        .onChange(of: router.pendingFeatureTarget) { _, _ in reveal(proxy) }
+        }
+    }
+
+    /// A search result's feature: open its options and scroll to its row.
+    private func reveal(_ proxy: ScrollViewProxy) {
+        guard let request = router.pendingFeatureTarget,
+              request.feature.group == group else { return }
+        router.consumeFeatureTarget(id: request.id)
+        expanded.insert(request.feature)
+        DispatchQueue.main.async { proxy.scrollTo(request.feature, anchor: .top) }
     }
 }
 
@@ -37,7 +57,7 @@ struct FeatureRow: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var features = FeatureRuntime.shared
     @ObservedObject private var permissions = Permissions.shared
-    @State private var expanded = false
+    @Binding var expanded: Bool
 
     private var hub: FeatureHubStrings { FeatureStrings.hub(l10n.language) }
 

@@ -26,8 +26,7 @@ private final class SettingsDirectoryCache {
                       featureRevision: featureRevision)
         if navigationKey != key {
             sections = SettingsDirectory.sidebarSections(
-                strings, language: language, superKeySource: superKeySource,
-                isAvailable: isAvailable)
+                strings, language: language, isAvailable: isAvailable)
             items = sections.flatMap(\.items)
             navigationKey = key
         }
@@ -58,7 +57,6 @@ struct SettingsView: View {
     @State private var searchQuery = ""
     @State private var activeSearchIndex: Int?
     @State private var directoryCache = SettingsDirectoryCache()
-    @State private var collapsedSectionIDs: Set<Int> = []
     @State private var navigationFromSidebar = false
     /// The row just picked in the sidebar, until the router has taken it.
     @State private var sidebarPick: SettingsSidebarItem.ID?
@@ -102,9 +100,7 @@ struct SettingsView: View {
     private var sidebarSelection: Binding<SettingsSidebarItem.ID?> {
         Binding(
             get: {
-                sidebarPick ?? SettingsSidebarSupport.selection(
-                    for: router.destination, in: sidebarItems,
-                    preferredID: router.sidebarFeature.map { .feature($0) })
+                sidebarPick ?? SettingsSidebarSupport.selection(for: router.page, in: sidebarItems)
             },
             // The list sets its selection during a view update, where the
             // router must not publish, so the pick is routed once it ends.
@@ -120,14 +116,8 @@ struct SettingsView: View {
         guard let selectedID else { return }
         sidebarPick = nil
         guard let item = sidebarItems.first(where: { $0.id == selectedID }) else { return }
-        let feature: AppFeature?
-        if case .feature(let selectedFeature) = selectedID {
-            feature = selectedFeature
-        } else {
-            feature = nil
-        }
         navigationFromSidebar = true
-        router.request(item.destination, sidebarFeature: feature)
+        router.request(item.destination)
     }
 
     var body: some View {
@@ -181,35 +171,29 @@ struct SettingsView: View {
             ToolbarItemGroup(placement: .navigation) {
                 let strings = SettingsNavigationStrings.localized(l10n.language)
                 Button {
-                    router.goBack(isPageVisible: isPageVisible)
+                    router.goBack()
                 } label: {
                     Label(strings.back, systemImage: "chevron.backward")
                 }
-                .disabled(!router.canGoBack(isPageVisible: isPageVisible))
+                .disabled(!router.canGoBack())
                 .help(strings.back)
 
                 Button {
-                    router.goForward(isPageVisible: isPageVisible)
+                    router.goForward()
                 } label: {
                     Label(strings.forward, systemImage: "chevron.forward")
                 }
-                .disabled(!router.canGoForward(isPageVisible: isPageVisible))
+                .disabled(!router.canGoForward())
                 .help(strings.forward)
             }
         }
         .frame(minWidth: 772, maxWidth: .infinity, minHeight: 528, maxHeight: .infinity)
-        .onAppear {
-            ensureVisiblePage()
-            expandSelectedSection()
-        }
-        .onChange(of: features.revision) { _, _ in ensureVisiblePage() }
         .onChange(of: searchResults, initial: true) { previous, current in
             updateSearchSelection(previous: previous, current: current)
         }
         .onChange(of: router.requestID) { _, _ in
             searchQuery = ""
             activeSearchIndex = nil
-            ensureVisiblePage()
         }
     }
 
@@ -292,7 +276,6 @@ struct SettingsView: View {
                 // pages clamp to where a fresh list starts, and a top anchor
                 // would leave the list's inset hidden.
                 guard !searching else { return }
-                expandSelectedSection()
                 DispatchQueue.main.async { scrollSidebarToSelection(proxy) }
             }
             .onChange(of: router.requestID) { _, _ in
@@ -301,7 +284,6 @@ struct SettingsView: View {
                 let fromSidebar = navigationFromSidebar
                 navigationFromSidebar = false
                 guard !fromSidebar else { return }
-                expandSelectedSection()
                 DispatchQueue.main.async { scrollSidebarToSelection(proxy) }
             }
             .background {
@@ -312,64 +294,36 @@ struct SettingsView: View {
         }
     }
 
-    private var selectedSidebarItem: SettingsSidebarItem.ID? {
-        let items = sidebarItems
-        return SettingsSidebarSupport.selection(for: router.destination, in: items,
-                                                preferredID: router.sidebarFeature.map { .feature($0) })
-            ?? items.first?.id
-    }
-
     private func scrollSidebarToSelection(_ proxy: ScrollViewProxy) {
-        guard !hasSearchQuery, let selected = selectedSidebarItem else { return }
+        guard !hasSearchQuery,
+              let selected = SettingsSidebarSupport.selection(for: router.page, in: sidebarItems)
+        else { return }
         proxy.scrollTo(selected, anchor: .center)
-    }
-
-    private func expandSelectedSection() {
-        guard let selected = selectedSidebarItem,
-              let section = sidebarSections.first(where: { section in
-                  section.items.contains(where: { $0.id == selected })
-              }) else { return }
-        collapsedSectionIDs.remove(section.id)
     }
 
     @ViewBuilder
     private var normalSidebarRows: some View {
-        let sections = sidebarSections
-        let items = directoryCache.items
-        let selectedID = SettingsSidebarSupport.selection(for: router.destination, in: items,
-                                                          preferredID: router.sidebarFeature.map { .feature($0) })
-        ForEach(sections) { section in
-            Section {
-                if !collapsedSectionIDs.contains(section.id) {
-                    ForEach(section.items) { item in
-                        HStack(spacing: 9) {
-                            Image(systemName: item.icon)
-                                .foregroundStyle(selectedID == item.id
-                                    ? AnyShapeStyle(.primary) : AnyShapeStyle(.tint))
-                                .frame(width: 18)
-                            Text(item.title)
+        let selectedID = SettingsSidebarSupport.selection(for: router.page, in: sidebarItems)
+        ForEach(sidebarSections) { section in
+            Section(section.title) {
+                ForEach(section.items) { item in
+                    HStack(spacing: 9) {
+                        Image(systemName: item.icon)
+                            .foregroundStyle(selectedID == item.id
+                                ? AnyShapeStyle(.primary) : AnyShapeStyle(.tint))
+                            .frame(width: 18)
+                        Text(item.title)
+                        Spacer(minLength: 4)
+                        if let count = item.count {
+                            Text(count)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
                         }
-                        .tag(item.id)
-                        .id(item.id)
-                        .help(item.title)
                     }
+                    .tag(item.id)
+                    .id(item.id)
+                    .help(item.title)
                 }
-            } header: {
-                Button {
-                    if !collapsedSectionIDs.insert(section.id).inserted {
-                        collapsedSectionIDs.remove(section.id)
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: collapsedSectionIDs.contains(section.id)
-                            ? "chevron.right" : "chevron.down")
-                            .font(.system(size: 9, weight: .semibold))
-                            .frame(width: 12)
-                        Text(section.title)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -528,44 +482,18 @@ struct SettingsView: View {
     private func requestSearchItem(_ suggestion: SettingsSearchSuggestion) {
         activeSearchIndex = nil
         let routed = SettingsSearchSupport.route(for: suggestion)
-        router.request(routed.destination, targetFeature: routed.targetFeature,
-                       sidebarFeature: suggestion.item.feature)
-    }
-
-    /// The selected page can leave the sidebar when its last feature is
-    /// switched off in the hub; fall back to the hub itself, where the
-    /// feature can be brought back.
-    private func ensureVisiblePage() {
-        if !isPageVisible(router.page) {
-            router.page = .features
-            return
+        // A feature's result opens its category with that row revealed.
+        if let feature = routed.targetFeature ?? suggestion.item.feature {
+            router.request(FeatureSettingsDestination(.category(feature.group)), targetFeature: feature)
+        } else {
+            router.request(routed.destination)
         }
-        guard router.destination.sectionAnchor != nil,
-              !sidebarItems.contains(where: { $0.destination == router.destination }) else { return }
-        switch router.page {
-        case .general:
-            // General stays visible when one of its tools is uninstalled.
-            router.request(FeatureSettingsDestination(.general), replacingVisit: true)
-        case .energy:
-            // Energy has no overview row. A history visit to an uninstalled
-            // tool should show another available tool, not an empty detail.
-            if let available = sidebarItems.first(where: { $0.destination.page == .energy }) {
-                router.request(available.destination, replacingVisit: true)
-            }
-        default:
-            break
-        }
-    }
-
-    private func isPageVisible(_ page: SettingsPage) -> Bool {
-        FeatureVisibilitySupport.isPageVisible(page, isAvailable: { $0.isAvailable })
     }
 
     @ViewBuilder
     private var detail: some View {
         if router.page == .general, let anchor = router.destination.sectionAnchor,
-           GeneralToolSettings.anchors.contains(anchor),
-           sidebarItems.contains(where: { $0.destination == router.destination }) {
+           GeneralToolSettings.anchors.contains(anchor) {
             GeneralToolSettings(anchor: anchor)
         } else {
             SettingsPageContent(page: router.page, anchor: router.destination.sectionAnchor)
@@ -617,6 +545,7 @@ struct SettingsPageContent: View {
         case .about: AboutSettings()
         case .releaseNotes: ReleaseNotesSettings()
         case .support: SupportSettings()
+        case .category(let group): FeatureCategorySettings(group: group).id(group)
         }
     }
 }
