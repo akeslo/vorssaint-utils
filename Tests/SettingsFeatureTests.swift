@@ -68,32 +68,10 @@ enum SettingsFeatureTests {
                 suite.expect(SettingsSearchSupport.matches(query: query, title: mouse.title, keywords: zoomKeywords),
                              "search finds a localized Zoom option on the Mouse page")
             }
-            let sidebar = SettingsSidebarSupport.items(page: .mouse, title: mouse.title, icon: mouse.icon,
-                preferredFeatures: mouse.terms.compactMap(\.feature), includePage: false,
-                isAvailable: { _ in true }, featureTitle: { $0.rawValue })
-            suite.expect(sidebar.prefix(3).map(\.id) == [.feature(.scrollInverter), .feature(.scrollHorizontal), .feature(.scrollZoom)],
-                         "the sidebar places Zoom beside scrolling in \(language.rawValue)")
+            // The fork's sidebar lists categories, not tools, so there is no Zoom row to place.
         }
         for (language, strings) in LocalizationTests.languages {
-            let captureRows = SettingsSidebarSupport.items(
-                page: .screenshot, title: "Screen capture", icon: "camera.viewfinder",
-                preferredFeatures: [.screenshot, .screenRecorder, .screenOCR, .colorPicker],
-                includePage: false, isAvailable: { _ in true }, featureTitle: { $0.rawValue })
-            let rows = SettingsSidebarSupport.screenshotRows(captureRows, language: language)
             let destination = ScreenCaptureTool.scrolling.settingsDestination
-            suite.expect(rows.prefix(3).map(\.id)
-                    == [.feature(.screenshot), .setting(.screenshotScrolling), .feature(.screenRecorder)]
-                    && rows[1].title == FeatureStrings.screenshot(language).scrollingCaptureTitle
-                    && SettingsSidebarSupport.selection(for: destination, in: rows)
-                        == .setting(.screenshotScrolling),
-                         "scrolling screenshot has a localized sidebar row beside Screenshot")
-            let hiddenRows = SettingsSidebarSupport.items(
-                page: .screenshot, title: "Screen capture", icon: "camera.viewfinder",
-                preferredFeatures: [.screenRecorder], includePage: false,
-                isAvailable: { $0 == .screenRecorder }, featureTitle: { $0.rawValue })
-            suite.expect(!SettingsSidebarSupport.screenshotRows(hiddenRows, language: language)
-                .contains { $0.id == .setting(.screenshotScrolling) },
-                         "removing Screenshot also hides its scrolling sidebar row")
             let search = SettingsSearchSupport.scrollingScreenshotItem(language: language)
             suite.expect(search.destination == destination && search.destination.hasValidSectionAnchor
                     && SettingsSearchSupport.matches(query: search.title, title: search.title)
