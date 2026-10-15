@@ -305,6 +305,26 @@ extension AppFeature {
     /// availability key. Features with several real options have none.
     var masterKey: String? { enabledKeys.count == 1 ? enabledKeys[0] : nil }
 
+    /// The options of a feature without a master key; with none of them on,
+    /// the feature's switch would read on while nothing runs.
+    var optionKeys: [String] {
+        self == .windowLayout
+            ? [DefaultsKey.windowLayoutShortcutsEnabled, DefaultsKey.windowDirectionalEnabled,
+               DefaultsKey.pointerDisplayEnabled, DefaultsKey.windowEdgeSnapEnabled,
+               DefaultsKey.windowGestureEnabled]
+            : masterKey == nil ? enabledKeys : []
+    }
+
+    /// What switching such a feature on turns on when none of its options is
+    /// on. Audio priority's output and input work together.
+    var initialEnableKeys: [String] {
+        switch self {
+        case .windowLayout: return [DefaultsKey.windowLayoutShortcutsEnabled]
+        case .audioPriority: return enabledKeys
+        default: return Array(optionKeys.prefix(1))
+        }
+    }
+
     /// Which permissions the feature can use at all. Whether it is using them
     /// RIGHT NOW is answered by `activeFeatures(using:)`, which also applies
     /// the dynamic rules (simple-mode switcher needs no screen recording, the

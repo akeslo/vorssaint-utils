@@ -157,7 +157,6 @@ final class NotchDownloadService: ObservableObject {
     func forgetFolder() {
         stop()
         UserDefaults.standard.removeObject(forKey: DefaultsKey.notchDownloadsFolderBookmark)
-        UserDefaults.standard.set(false, forKey: DefaultsKey.notchDownloadsEnabled)
         folderName = nil
         folderUnavailable = false
     }
