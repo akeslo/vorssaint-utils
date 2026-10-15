@@ -63,7 +63,7 @@ def main():
 
     row_actions = "".join(declaration(shortcut_row, prefix).replace("private func", "func", 1)
                           for prefix in ["    private func clear()", "    private func reset()",
-                                         "    private func save(_ shortcut:"])
+                                         "    private func markRecorded(", "    private func save(_ shortcut:"])
     if row_actions.count("excluding: role,") != 1 or row_actions.count("includeInactive: includeInactiveConflicts)") != 1:
         raise ValueError("Expected one injectable role-conflict lookup in the shortcut row")
     row_actions = row_actions.replace(
@@ -259,14 +259,6 @@ def main():
                                    "    private func setLaunchAtLogin("])
           + "}\n")
     cleaner_view = "Sources/Vorssaint/UI/Cleaner/CleanerView.swift"
-    feature_hub = "Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift"
-    write("FeatureHubLayout.swift", "import AppKit\nimport SwiftUI\nextension FeatureHubLayoutTests.Page {\n"
-          + "".join(declaration(feature_hub, prefix).replace("    private var", "    var", 1)
-                    for prefix in ["    private var content:", "    private var restartCard:"])
-          + "}\nextension FeatureHubLayoutTests {\n"
-          + declaration("Sources/Vorssaint/UI/Settings/SettingsCard.swift", "struct SettingsCard<")
-          + "}\n"
-          + declaration(feature_hub, "private struct FeatureHubScrollAnchor:"))
     write("CleanerLayout.swift", "import SwiftUI\nextension CleanerLayoutTests.Results {\n"
           + "".join(declaration(cleaner_view, prefix).replace("    private ", "    @ViewBuilder\n    ", 1)
                     for prefix in ["    private var resultsState:", "    private var resultsGroups:",
@@ -797,7 +789,7 @@ def main():
               "    private static func pollPasteboard(", "    private static func writeToPasteboard("])
           + "}\n")
     write("CommandBarFeatureNames.swift", "import Foundation\nextension AppFeature {\n"
-          + declaration("Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift", "    func hubTitle(")
+          + declaration("Sources/Vorssaint/UI/Settings/FeatureDescriptions.swift", "    func hubTitle(")
           + "}\n")
     write("CommandBarCatalogBuild.swift", "import Foundation\n"
           + "extension CommandBarFeatureTests.CatalogBuildHost {\n"
@@ -979,7 +971,9 @@ def main():
           + declaration(directory, "    static func sections(").replace("SuperKeyService.shared.source", ".capsLock")
           + declaration(directory, "    static func searchItems(").replace("SuperKeyService.shared.source", ".capsLock")
               .replace("state: SettingsSearchState = .current", "state: SettingsSearchState")
-          + "}\nextension SettingsFeatureTests.SearchCommands {\n"
+          + "}\n"
+          + declaration("Sources/Vorssaint/UI/Settings/FeatureDescriptions.swift", "extension FeatureGroup {")
+          + "extension SettingsFeatureTests.SearchCommands {\n"
           + declaration("Sources/Vorssaint/Services/CommandBar/CommandBarCatalog.swift", "    private static func settingsEntries(")
               .replace("private static func", "static func", 1)
           + "}\nextension SettingsFeatureTests.IslandSettings {\n"

@@ -23,14 +23,13 @@ enum SettingsSearchCoverageTests {
         ("Sources/Vorssaint/UI/Settings/SettingsSearchSupport.swift",
          "    static func screenCaptureFeatureKeywords(", nil),
         // Every feature's name is a search result of its own.
-        ("Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift", "    func hubTitle(", nil),
+        ("Sources/Vorssaint/UI/Settings/FeatureDescriptions.swift", "    func hubTitle(", nil),
         ("Sources/Vorssaint/Core/NotchMascotStrings.swift", "    var searchKeywords:", "NotchMascotStrings"),
     ]
 
     /// Labels that name no setting, so a search for them has nowhere to go.
     private static let exemptions: [String: String] = [
         "Strings.permissionRequired": "a banner asking for a missing permission",
-        "FeatureHubStrings.neverUsedTitle": "a suggestion that shows only while some features stay unused",
     ]
 
     static func run(_ suite: TestSuite) {

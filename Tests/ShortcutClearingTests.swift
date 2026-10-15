@@ -168,6 +168,10 @@ enum ShortcutClearingTests {
         var errorText: String?
         var pendingTakeOver: GlobalShortcut?
         var changes = 0
+        // Upstream's clearing roles; the fork's recorded-only rows are not under test here.
+        var recordedKey: String? = nil
+        var recorded = true
+        var canClear: Bool { role.supportsClearing || recordedKey != nil }
         var rawValue: String {
             get { UserDefaults.standard.string(forKey: role.storageKey) ?? role.defaultShortcut.storageValue }
             set { UserDefaults.standard.set(newValue, forKey: role.storageKey) }

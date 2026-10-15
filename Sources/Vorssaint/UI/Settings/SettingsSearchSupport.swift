@@ -33,7 +33,7 @@ struct SettingsSearchTerms {
             return SettingsSearchItem(id: .notch(notch), destination: destination,
                                       title: parent.title, icon: parent.icon, feature: feature)
         }
-        if case .page(let page) = parent.id, page != .features, let feature,
+        if case .page(let page) = parent.id, let feature,
            feature.settingsDestination.page == page, feature != parent.feature {
             return SettingsSearchItem(id: .feature(feature), destination: feature.settingsDestination,
                                       title: parent.title, icon: feature.symbolName, feature: feature)
@@ -89,9 +89,6 @@ struct SettingsSearchSuggestion: Identifiable {
     let title: String
     let icon: String
     let item: SettingsSearchItem
-    /// Features-page keyword rows use this to reveal the exact utility rather
-    /// than opening the hub at an unrelated scroll position.
-    var featureHubTarget: AppFeature? = nil
 }
 
 /// macOS Settings-style search group: the main page is shown once, followed
@@ -194,10 +191,10 @@ enum SettingsSearchSupport {
     }
 
     /// Where a search or command-bar result should route right now. A
-    /// feature-backed result that is unavailable, or whose intentional
-    /// destination is the Features hub itself, opens Features with an
-    /// explicit target feature so the hub can reveal that exact row; every
-    /// other result opens its own destination unchanged. Shared by the
+    /// feature-backed result that is off, or whose destination is its
+    /// category page, opens that category with the feature as the target so
+    /// the page can reveal its row; every other result opens its own
+    /// destination unchanged. Shared by the
     /// Settings sidebar search and the Command Bar so neither duplicates the
     /// other's fallback logic.
     static func route(for item: SettingsSearchItem,
@@ -205,15 +202,16 @@ enum SettingsSearchSupport {
         -> (destination: FeatureSettingsDestination, targetFeature: AppFeature?) {
         if let feature = item.feature {
             guard isAvailable(feature) || leadsToVisiblePage(item, isAvailable: isAvailable) else {
-                return (FeatureSettingsDestination(.features), feature)
+                return (FeatureSettingsDestination(.category(feature.group)), feature)
             }
-            if item.destination.page == .features {
+            if case .category = item.destination.page {
                 return (item.destination, feature)
             }
             return (item.destination, nil)
         }
         guard FeatureVisibilitySupport.isPageVisible(item.destination.page, isAvailable: isAvailable) else {
-            return (FeatureSettingsDestination(.features), nil)
+            let group = FeatureVisibilitySupport.features(for: item.destination.page).first?.group
+            return (group.map { FeatureSettingsDestination(.category($0)) } ?? item.destination, nil)
         }
         return (item.destination, nil)
     }
@@ -230,9 +228,6 @@ enum SettingsSearchSupport {
     static func route(for suggestion: SettingsSearchSuggestion,
                       isAvailable: (AppFeature) -> Bool = { $0.isAvailable })
         -> (destination: FeatureSettingsDestination, targetFeature: AppFeature?) {
-        if let feature = suggestion.featureHubTarget {
-            return (FeatureSettingsDestination(.features), feature)
-        }
         return route(for: suggestion.item, isAvailable: isAvailable)
     }
 
@@ -335,8 +330,7 @@ enum SettingsSearchSupport {
                     where keywordMatches(keyword, foldedQuery: foldedQuery) {
                     appendSuggestion(SettingsSearchSuggestion(
                         id: .keyword(item.id, groupIndex, index), title: keyword, icon: item.icon,
-                        item: group.item(on: item),
-                        featureHubTarget: page == .features ? group.feature : nil), to: &builder)
+                        item: group.item(on: item)), to: &builder)
                 }
             }
             builders[page] = builder
