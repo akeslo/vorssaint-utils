@@ -75,6 +75,8 @@ struct FeatureRow: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
+                    // The island follows its extensions, so it has no switch.
+                    if feature != .notch {
                     Toggle(feature.hubTitle(l10n.s, hub: hub), isOn: Binding(
                         get: { feature.isAvailable },
                         set: { FeatureRuntime.shared.setAvailable([feature], $0) }))
@@ -82,6 +84,7 @@ struct FeatureRow: View {
                         .toggleStyle(.switch)
                         .disabled(!on && feature.installBlockedReason != nil)
                         .help(on ? "" : feature.installBlockedReason ?? "")
+                    }
                 }
                 .opacity(on ? 1 : 0.5)
                 if on, !chips.isEmpty {
@@ -148,7 +151,7 @@ struct FeatureRow: View {
 
     private struct Chip { let text: String; let symbol: String; let on: Bool }
 
-    /// shortcut: no Dynamic Island chip yet; the island joins this model in its own step.
+    /// shortcut: no Dynamic Island chip for features outside the island's group, add one when they gain island modules.
     private var chips: [Chip] {
         let defaults = UserDefaults.standard
         var result: [Chip] = []
