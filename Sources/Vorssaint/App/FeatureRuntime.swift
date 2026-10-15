@@ -130,22 +130,15 @@ final class FeatureRuntime: ObservableObject {
         return true
     }
 
-    /// Applies a hub preset additively: its features turn on, with their
-    /// enable keys, and nothing already on is ever turned off.
-    func apply(_ preset: FeaturePreset) {
-        for key in preset.enableKeys where !UserDefaults.standard.bool(forKey: key) {
-            UserDefaults.standard.set(true, forKey: key)
-        }
-        setAvailable(Array(preset.features), true)
-        sync(Array(preset.features))
-    }
-
     /// Availability is the one switch; a master key only mirrors it.
     private static func write(_ on: Bool, for feature: AppFeature) {
         let defaults = UserDefaults.standard
         defaults.set(on, forKey: feature.availabilityKey)
         if let key = feature.masterKey, defaults.bool(forKey: key) != on {
             defaults.set(on, forKey: key)
+        }
+        if on, !feature.optionKeys.contains(where: defaults.bool(forKey:)) {
+            feature.initialEnableKeys.forEach { defaults.set(true, forKey: $0) }
         }
     }
 
@@ -176,11 +169,6 @@ final class FeatureRuntime: ObservableObject {
         }
         _ = syncIsland()
         finishAvailabilityChange()
-    }
-
-    /// Bulk install or uninstall for the hub's "all" buttons.
-    func setAllAvailable(_ available: Bool) {
-        setAvailable(AppFeature.allCases, available)
     }
 
     /// Launch path: replaces the old unconditional sync block. Only available
