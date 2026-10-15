@@ -1009,6 +1009,7 @@ enum DefaultsKey {
     /// hold no resources, without ever touching their own enable keys.
     static func featureAvailable(_ id: String) -> String { "featureAvailable.\(id)" }
     static let oneSwitchMigrated = "oneSwitchMigrated" // availability became the only on/off gate
+    static let islandSwitchMigrated = "islandSwitchMigrated" // the island became "any extension on"
 }
 
 /// Bump `currentFeatureSet` when first-run feature defaults need a quiet marker.
@@ -2068,6 +2069,7 @@ enum Defaults {
         defaults.register(defaults: registeredDefaults)
         defaults.register(defaults: AppFeature.availabilityDefaults)
         migrateOneSwitch(in: defaults)
+        migrateIslandSwitch(in: defaults)
         activateBetaChannelIfRunningBeta(in: defaults)
         installCompanionForBetaCommandBar(in: defaults)
         migrateLegacyMenuBarTemperatureMetric(in: defaults)
@@ -2336,6 +2338,30 @@ enum Defaults {
             if defaults.bool(forKey: key) != on { defaults.set(on, forKey: key) }
         }
         defaults.set(true, forKey: DefaultsKey.oneSwitchMigrated)
+    }
+
+    /// The island lost its own switch and runs while any extension is on.
+    /// Once: an island that was off takes its extensions off with it (their
+    /// settings stay), and one that was on with none keeps running on
+    /// gestures, the extension with no permission and nothing to show.
+    /// Every launch: the island key follows the extensions.
+    static func migrateIslandSwitch(in defaults: UserDefaults) {
+        func set(_ feature: AppFeature, _ on: Bool) {
+            for key in [feature.availabilityKey] + (feature.masterKey.map { [$0] } ?? [])
+            where defaults.bool(forKey: key) != on {
+                defaults.set(on, forKey: key)
+            }
+        }
+        let extensions = AppFeature.dynamicIslandExtensions
+        if !defaults.bool(forKey: DefaultsKey.islandSwitchMigrated) {
+            if !AppFeature.notch.isAvailable(in: defaults) {
+                extensions.forEach { set($0, false) }
+            } else if !extensions.contains(where: { $0.isAvailable(in: defaults) }) {
+                set(.notchGestures, true)
+            }
+            defaults.set(true, forKey: DefaultsKey.islandSwitchMigrated)
+        }
+        set(.notch, extensions.contains { $0.isAvailable(in: defaults) })
     }
 
     static func migrateFanControlVisibility(in defaults: UserDefaults) {

@@ -83,7 +83,8 @@ struct MonitorPanelConfig: View {
                 ForEach(availableBlocks, id: \.self) { block in
                     MonitorToken(symbol: block.section.symbolName,
                                  title: block.section.title(l10n.s),
-                                 included: master(block),
+                                 // Showing a section is chosen once, in General's panel list.
+                                 included: .constant(master(block).wrappedValue),
                                  selected: currentBlock == block,
                                  large: true) {
                         selectedBlock = block

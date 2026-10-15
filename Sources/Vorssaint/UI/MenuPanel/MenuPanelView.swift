@@ -1727,7 +1727,8 @@ struct QuickControlsSection: View {
             PanelToggleRow(title: text.title,
                            caption: text.description,
                            systemImage: "macbook",
-                           isOn: $notchEnabled,
+                           isOn: Binding(get: { notchEnabled },
+                                         set: { FeatureRuntime.shared.setAvailable([.notch], $0) }),
                            isEditing: editing,
                            showsDragHandle: true,
                            visibility: $showNotch,
@@ -1736,9 +1737,6 @@ struct QuickControlsSection: View {
                                SettingsRouter.shared.page = .notch
                                appDelegate()?.openSettingsWindow()
                            })
-                .onChange(of: notchEnabled) { _, _ in
-                    NotchService.shared.syncWithPreferences()
-                }
         case .radialMenu:
             let radialStrings = FeatureStrings.radialMenu(l10n.language)
             // Only wheels that press keys for the user (shortcut or media

@@ -148,8 +148,6 @@ struct NotchSettings: View {
                     Text(text.description).font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 12)
-                Toggle(text.enable, isOn: $enabled).labelsHidden().toggleStyle(.switch)
-                    .disabled(!AppFeature.notch.isAvailable).accessibilityLabel(text.enable)
             }
             if enabled, AppFeature.notch.isAvailable, !(hover && hideUntilHover), !notch.geometry.isNotched, !permissions.accessibility {
                 VStack(alignment: .leading, spacing: 8) {
