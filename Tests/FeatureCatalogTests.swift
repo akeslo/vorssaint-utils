@@ -530,13 +530,21 @@ enum FeatureCatalogTests {
             migrateDefaults.set(false, forKey: AppFeature.shelf.availabilityKey)
             migrateDefaults.set(true, forKey: DefaultsKey.shelfEnabled)
             migrateDefaults.set(true, forKey: AppFeature.dockClick.availabilityKey)
+            migrateDefaults.set(true, forKey: AppFeature.dockClick.optionKeys[1])
+            migrateDefaults.set(true, forKey: AppFeature.audioPriority.availabilityKey)
+            AppFeature.audioPriority.optionKeys.forEach { migrateDefaults.set(false, forKey: $0) }
             Defaults.migrateOneSwitch(in: migrateDefaults)
             suite.expect(!migrateDefaults.bool(forKey: AppFeature.switcher.availabilityKey)
                          && migrateDefaults.bool(forKey: AppFeature.brightness.availabilityKey)
                          && !migrateDefaults.bool(forKey: AppFeature.shelf.availabilityKey)
                          && !migrateDefaults.bool(forKey: DefaultsKey.shelfEnabled)
-                         && migrateDefaults.bool(forKey: AppFeature.dockClick.availabilityKey),
-                         "a feature stays on only if installed and its master switch was on or absent")
+                         && migrateDefaults.bool(forKey: AppFeature.dockClick.availabilityKey)
+                         && !migrateDefaults.bool(forKey: AppFeature.audioPriority.availabilityKey),
+                         "a feature stays on only if installed and its master switch, or one of its options, was on")
+            suite.expect(AppFeature.windowLayout.initialEnableKeys == [DefaultsKey.windowLayoutShortcutsEnabled]
+                         && AppFeature.audioPriority.initialEnableKeys == AppFeature.audioPriority.enabledKeys
+                         && AppFeature.switcher.optionKeys.isEmpty && AppFeature.switcher.initialEnableKeys.isEmpty,
+                         "switching on a feature whose options are all off turns on its main option only")
             migrateDefaults.set(true, forKey: DefaultsKey.switcherEnabled)
             Defaults.migrateOneSwitch(in: migrateDefaults)
             suite.expect(!migrateDefaults.bool(forKey: AppFeature.switcher.availabilityKey),
