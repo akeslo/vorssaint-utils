@@ -278,13 +278,13 @@ struct FeatureHubSettings: View {
 
     /// Changing one's mind is also an answer to the offer, so the features
     /// that come back are kept and never offered again. None of them was
-    /// ever on, and the reinstall leaves their switches off too.
+    /// ever on.
     private func undoNeverUsedUninstall() {
         let batch = recentlyUninstalled
         recentlyUninstalled = []
         FeatureRuntime.shared.keep(batch)
         withAnimation(.easeOut(duration: 0.22)) {
-            FeatureRuntime.shared.setAvailable(batch, true, enablingFirstInstalls: false)
+            FeatureRuntime.shared.setAvailable(batch, true)
         }
     }
 
@@ -746,7 +746,7 @@ struct PermissionsPortalSections: View {
         ForEach(visiblePermissions, id: \.self) { permission in
             PermissionPortalRow(permission: permission,
                                 hub: hub,
-                                status: status(for: permission))
+                                status: permissions.status(for: permission, automation: automation))
             if permission != visiblePermissions.last {
                 Divider().padding(.leading, 42)
             }
@@ -772,70 +772,10 @@ struct PermissionsPortalSections: View {
             permissions.setActivePermissionSurface(pollingDemandID, visible: false)
         }
     }
-
-    private func status(for permission: AppPermission) -> PermissionPortalRow.Status {
-        switch permission {
-        case .accessibility: return permissions.accessibility ? .granted : .missing
-        case .screenRecording: return permissions.screenRecording ? .granted : .missing
-        case .fullDiskAccess: return permissions.fullDiskAccess ? .granted : .missing
-        case .filesAndFolders:
-            guard AppFeature.cleaner.isAvailable,
-                  WhatsAppDownloadSupport.isEnabled else {
-                return .unknown
-            }
-            switch WhatsAppDownloadManager.shared.accessStatus {
-            case .available: return .granted
-            case .denied: return .missing
-            case .unknown: return .unknown
-            }
-        case .notifications:
-            switch permissions.notifications {
-            case .granted: return .granted
-            case .denied, .undetermined: return .missing
-            case .unknown: return .unknown
-            }
-        case .automationFinder: return automationStatus(.finder)
-        case .automationTerminal: return automationStatus(.terminal)
-        case .automationPlayback: return .unknown
-        case .audioCapture:
-            // No public check exists for system audio capture; the mixer
-            // reports a failed tap, which is the one readable signal.
-            if AppFeature.mixer.isAvailable, AppVolumeMixer.shared.needsPermission {
-                return .missing
-            }
-            return .unknown
-        case .microphone:
-            switch permissions.microphone {
-            case .granted: return .granted
-            case .denied, .undetermined: return .missing
-            case .unknown: return .unknown
-            }
-        case .calendar:
-            return permissions.calendarAccess == .fullAccess ? .granted : .missing
-        case .camera:
-            switch permissions.camera {
-            case .granted: return .granted
-            case .denied, .undetermined: return .missing
-            case .unknown: return .unknown
-            }
-        case .appManagement:
-            // macOS has no public preflight API for this permission. The
-            // system records the app only after its first protected write.
-            return .unknown
-        }
-    }
-
-    private func automationStatus(_ target: Permissions.AutomationTarget) -> PermissionPortalRow.Status {
-        switch automation[target] {
-        case .granted: return .granted
-        case .denied, .undetermined: return .missing
-        case .notDeterminable, .none: return .unknown
-        }
-    }
 }
 
 private struct PermissionPortalRow: View {
-    enum Status { case granted, missing, unknown }
+    typealias Status = PermissionPortalStatus
 
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.colorScheme) private var colorScheme

@@ -97,14 +97,10 @@ final class FeatureRuntime: ObservableObject {
     }
 
     /// Flipping availability runs each feature's binding immediately, in the
-    /// order given: off tears every resource down on the spot, while a first
-    /// install turns on the feature's main control. Saved choices survive a
-    /// reinstall. One row, the "all" buttons and the Dynamic Island leaving
+    /// order given: off tears every resource down on the spot. A master
+    /// switch follows availability; real options are never touched. One row, the "all" buttons and the Dynamic Island leaving
     /// with its extensions all pass through here, with one revision bump.
-    /// Install all leaves enable keys alone: it would otherwise switch on
-    /// intrusive features nobody picked, such as focus follows mouse.
-    func setAvailable(_ features: [AppFeature], _ available: Bool,
-                      enablingFirstInstalls: Bool = true) {
+    func setAvailable(_ features: [AppFeature], _ available: Bool) {
         var changed = false
         let firstIslandInstall = available && features.contains(.notch)
             && mayFlip(.notch, to: true)
@@ -112,12 +108,8 @@ final class FeatureRuntime: ObservableObject {
         let requested = firstIslandInstall
             ? features + AppFeature.dynamicIslandInitialExtensions.filter { !features.contains($0) }
             : features
-        let savedValues = savedPreferences()
         for feature in requested where mayFlip(feature, to: available) {
-            if available && enablingFirstInstalls {
-                feature.enableOnFirstInstall(in: .standard, savedValues: savedValues)
-            }
-            UserDefaults.standard.set(available, forKey: feature.availabilityKey)
+            Self.write(available, for: feature)
             if available {
                 loadedThisSession.insert(feature)
                 offerableThisSession.remove(feature)
@@ -131,12 +123,23 @@ final class FeatureRuntime: ObservableObject {
         if changed { finishAvailabilityChange() }
     }
 
-    /// Applies a hub preset: its features become the installed set, with
-    /// their enable keys switched on so they work right away, and everything
-    /// else uninstalls. Nothing is deleted, so any feature returns with one
-    /// click, settings intact.
+    /// Applies a hub preset additively: its features turn on, with their
+    /// enable keys, and nothing already on is ever turned off.
     func apply(_ preset: FeaturePreset) {
-        replaceAvailable(with: preset.features, enabling: preset.enableKeys)
+        for key in preset.enableKeys where !UserDefaults.standard.bool(forKey: key) {
+            UserDefaults.standard.set(true, forKey: key)
+        }
+        setAvailable(Array(preset.features), true)
+        sync(Array(preset.features))
+    }
+
+    /// Availability is the one switch; a master key only mirrors it.
+    private static func write(_ on: Bool, for feature: AppFeature) {
+        let defaults = UserDefaults.standard
+        defaults.set(on, forKey: feature.availabilityKey)
+        if let key = feature.masterKey, defaults.bool(forKey: key) != on {
+            defaults.set(on, forKey: key)
+        }
     }
 
     /// Replaces the installed set after the first-run picker. It uses the same
@@ -146,14 +149,10 @@ final class FeatureRuntime: ObservableObject {
         for key in keys {
             UserDefaults.standard.set(true, forKey: key)
         }
-        let savedValues = savedPreferences()
         for feature in AppFeature.allCases
         where mayFlip(feature, to: selected.contains(feature)) {
             let joins = selected.contains(feature)
-            if joins {
-                feature.enableOnFirstInstall(in: .standard, savedValues: savedValues)
-            }
-            UserDefaults.standard.set(joins, forKey: feature.availabilityKey)
+            Self.write(joins, for: feature)
             if joins {
                 loadedThisSession.insert(feature)
                 offerableThisSession.remove(feature)
@@ -201,7 +200,7 @@ final class FeatureRuntime: ObservableObject {
 
     /// Bulk install or uninstall for the hub's "all" buttons.
     func setAllAvailable(_ available: Bool) {
-        setAvailable(AppFeature.allCases, available, enablingFirstInstalls: false)
+        setAvailable(AppFeature.allCases, available)
     }
 
     private func savedPreferences() -> [String: Any] {
@@ -442,5 +441,83 @@ extension AppFeature {
     /// so neither can drift from the gate in `FeatureRuntime`.
     var installBlockedReason: String? {
         isAvailable ? nil : hardwareUnsupportedReason
+    }
+}
+
+/// Portal status of one permission, shared by the Permissions portal and
+/// `AppFeature.state`. Automation answers come from an off-main AE probe, so
+/// callers without one pass nothing and those read as unknown.
+enum PermissionPortalStatus { case granted, missing, unknown }
+
+extension Permissions {
+    func status(for permission: AppPermission,
+                automation: [AutomationTarget: AutomationStatus] = [:]) -> PermissionPortalStatus {
+        switch permission {
+        case .accessibility: return accessibility ? .granted : .missing
+        case .screenRecording: return screenRecording ? .granted : .missing
+        case .fullDiskAccess: return fullDiskAccess ? .granted : .missing
+        case .filesAndFolders:
+            guard AppFeature.cleaner.isAvailable,
+                  WhatsAppDownloadSupport.isEnabled else {
+                return .unknown
+            }
+            switch WhatsAppDownloadManager.shared.accessStatus {
+            case .available: return .granted
+            case .denied: return .missing
+            case .unknown: return .unknown
+            }
+        case .notifications:
+            switch notifications {
+            case .granted: return .granted
+            case .denied, .undetermined: return .missing
+            case .unknown: return .unknown
+            }
+        case .automationFinder: return automationStatus(.finder, automation)
+        case .automationTerminal: return automationStatus(.terminal, automation)
+        case .automationPlayback: return .unknown
+        case .audioCapture:
+            // No public check exists for system audio capture; the mixer
+            // reports a failed tap, which is the one readable signal.
+            if AppFeature.mixer.isAvailable, AppVolumeMixer.shared.needsPermission {
+                return .missing
+            }
+            return .unknown
+        case .microphone:
+            switch microphone {
+            case .granted: return .granted
+            case .denied, .undetermined: return .missing
+            case .unknown: return .unknown
+            }
+        case .calendar:
+            return calendarAccess == .fullAccess ? .granted : .missing
+        case .camera:
+            switch camera {
+            case .granted: return .granted
+            case .denied, .undetermined: return .missing
+            case .unknown: return .unknown
+            }
+        case .appManagement:
+            // macOS has no public preflight API for this permission. The
+            // system records the app only after its first protected write.
+            return .unknown
+        }
+    }
+
+    private func automationStatus(_ target: AutomationTarget,
+                                  _ automation: [AutomationTarget: AutomationStatus]) -> PermissionPortalStatus {
+        switch automation[target] {
+        case .granted: return .granted
+        case .denied, .undetermined: return .missing
+        case .notDeterminable, .none: return .unknown
+        }
+    }
+}
+
+extension AppFeature {
+    /// Live state for a settings row: hardware first, then any permission the
+    /// feature is using right now that is known to be denied.
+    var state: FeatureState {
+        state(hardwareReason: hardwareUnsupportedReason,
+              isMissing: { Permissions.shared.status(for: $0) == .missing })
     }
 }
