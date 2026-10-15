@@ -418,7 +418,7 @@ struct FeatureHubSettings: View {
                 .frame(width: 26, height: 26)
                 .background(Color.accentColor.opacity(0.12),
                             in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            Text(groupTitle(group)).font(.headline)
+            Text(group.title(hub)).font(.headline)
             Spacer(minLength: 12)
             Text("\(installed)/\(total)")
                 .font(.caption.monospacedDigit())
@@ -428,22 +428,23 @@ struct FeatureHubSettings: View {
                 .frame(width: 64)
         }
     }
+}
 
-    private func groupTitle(_ group: FeatureGroup) -> String {
-        switch group {
+extension FeatureGroup {
+    func title(_ hub: FeatureHubStrings) -> String {
+        switch self {
         case .windowsDock: return hub.groupWindowsDock
         case .mouseKeyboard: return hub.groupMouseKeyboard
         case .clipboardFiles: return hub.groupClipboardFiles
         case .sound: return hub.groupSound
         case .energyDisplay: return hub.groupEnergyDisplay
         case .tools: return hub.groupTools
-        case .dynamicIsland: return FeatureStrings.notch(l10n.language).title
+        case .dynamicIsland: return FeatureStrings.notch(L10n.shared.language).title
         case .monitor: return hub.groupMonitor
         }
     }
-}
 
-private extension FeatureGroup {
+
     var symbolName: String {
         switch self {
         case .windowsDock: return "macwindow.on.rectangle"
@@ -814,7 +815,7 @@ private struct PermissionPortalRow: View {
                     if status != .granted, hasRequestFlow {
                         Button(hub.requestButton) { request() }
                     }
-                    Button(hub.openSystemSettings) { openSystemSettings() }
+                    Button(hub.openSystemSettings) { permission.openSystemSettings() }
                 }
                 .controlSize(.small)
                 .padding(.top, 2)
@@ -904,22 +905,6 @@ private struct PermissionPortalRow: View {
         case .filesAndFolders, .automationFinder, .automationTerminal, .automationPlayback, .audioCapture,
              .appManagement:
             break
-        }
-    }
-
-    private func openSystemSettings() {
-        switch permission {
-        case .accessibility: Permissions.shared.openAccessibilitySettings()
-        case .screenRecording: Permissions.shared.openScreenRecordingSettings()
-        case .fullDiskAccess: Permissions.shared.openFullDiskAccessSettings()
-        case .filesAndFolders: Permissions.shared.openFilesAndFoldersSettings()
-        case .notifications: Permissions.shared.openNotificationSettings()
-        case .automationFinder, .automationTerminal, .automationPlayback: Permissions.shared.openAutomationSettings()
-        case .audioCapture: Permissions.shared.openAudioCaptureSettings()
-        case .microphone: Permissions.shared.openMicrophoneSettings()
-        case .calendar: Permissions.shared.openCalendarSettings()
-        case .camera: Permissions.shared.openCameraSettings()
-        case .appManagement: Permissions.shared.openAppManagementSettings()
         }
     }
 }
@@ -1155,6 +1140,24 @@ extension AppPermission {
         case .calendar: return FeatureStrings.notchCalendar(L10n.shared.language).permission
         case .camera: return FeatureStrings.cameraPreview(L10n.shared.language).permExplain
         case .appManagement: return hub.explainAppManagement
+        }
+    }
+}
+
+extension AppPermission {
+    func openSystemSettings() {
+        switch self {
+        case .accessibility: Permissions.shared.openAccessibilitySettings()
+        case .screenRecording: Permissions.shared.openScreenRecordingSettings()
+        case .fullDiskAccess: Permissions.shared.openFullDiskAccessSettings()
+        case .filesAndFolders: Permissions.shared.openFilesAndFoldersSettings()
+        case .notifications: Permissions.shared.openNotificationSettings()
+        case .automationFinder, .automationTerminal, .automationPlayback: Permissions.shared.openAutomationSettings()
+        case .audioCapture: Permissions.shared.openAudioCaptureSettings()
+        case .microphone: Permissions.shared.openMicrophoneSettings()
+        case .calendar: Permissions.shared.openCalendarSettings()
+        case .camera: Permissions.shared.openCameraSettings()
+        case .appManagement: Permissions.shared.openAppManagementSettings()
         }
     }
 }

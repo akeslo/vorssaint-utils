@@ -200,12 +200,7 @@ struct MouseSettings: View {
             if AppFeature.scrollHorizontal.isAvailable {
                 SettingsRow(symbol: "arrow.left.and.right", title: l10n.s.scrollHorizontalName,
                             caption: l10n.s.scrollHorizontalCaption) {
-                    Toggle(l10n.s.scrollHorizontalName, isOn: $horizontalScrollEnabled)
-                        .labelsHidden()
-                        .onChange(of: horizontalScrollEnabled) { _, _ in
-                            ScrollInverter.shared.syncWithPreferences()
-                            if scrollDirectionEnabled { permissions.requestAccessibility() }
-                        }
+                    EmptyView()
                 }
                 if horizontalScrollEnabled {
                     modifierKeys
@@ -275,12 +270,7 @@ struct MouseSettings: View {
         SettingsCard {
             SettingsRow(symbol: "macwindow.and.cursorarrow", title: l10n.s.focusFollowsMouseName,
                         caption: l10n.s.focusFollowsMouseCaption) {
-                Toggle(l10n.s.focusFollowsMouseName, isOn: $focusFollowsMouseEnabled)
-                    .labelsHidden()
-                    .onChange(of: focusFollowsMouseEnabled) { _, enabled in
-                        FocusFollowsMouseService.shared.syncWithPreferences()
-                        if enabled { Permissions.shared.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if focusFollowsMouseEnabled {
                 VStack(alignment: .leading, spacing: 10) {
@@ -306,12 +296,7 @@ struct MouseSettings: View {
     private var smoothScrollCard: some View {
         SettingsCard {
             SettingsRow(symbol: "scroll", title: l10n.s.smoothScrollName, caption: l10n.s.smoothScrollCaption) {
-                Toggle(l10n.s.smoothScrollName, isOn: $smoothScrollEnabled)
-                    .labelsHidden()
-                    .onChange(of: smoothScrollEnabled) { _, enabled in
-                        SmoothScrollService.shared.syncWithPreferences()
-                        if enabled { permissions.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if smoothScrollEnabled {
                 VStack(alignment: .leading, spacing: 10) {
@@ -353,12 +338,7 @@ struct MouseSettings: View {
         SettingsCard {
             SettingsRow(symbol: AppFeature.linearScroll.symbolName, title: l10n.s.linearScrollName,
                         caption: l10n.s.linearScrollCaption) {
-                Toggle(l10n.s.linearScrollName, isOn: $linearScrollEnabled)
-                    .labelsHidden()
-                    .onChange(of: linearScrollEnabled) { _, enabled in
-                        ScrollInverter.shared.syncWithPreferences()
-                        if enabled { permissions.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if linearScrollEnabled {
                 VStack(alignment: .leading, spacing: 10) {
@@ -397,11 +377,7 @@ struct MouseSettings: View {
         SettingsCard {
             SettingsRow(symbol: "cursorarrow.motionlines", title: l10n.s.mouseAccelerationName,
                         caption: l10n.s.mouseAccelerationCaption) {
-                Toggle(l10n.s.mouseAccelerationName, isOn: $mouseAccelerationDisabled)
-                    .labelsHidden()
-                    .onChange(of: mouseAccelerationDisabled) { _, _ in
-                        MouseAccelerationService.shared.syncWithPreferences()
-                    }
+                EmptyView()
             }
         }
     }
@@ -410,12 +386,7 @@ struct MouseSettings: View {
         SettingsCard(title: l10n.s.mouseNavigationSection) {
             SettingsRow(symbol: "arrowshape.turn.up.left", title: l10n.s.mouseNavigationEnable,
                         caption: l10n.s.mouseNavigationCaption) {
-                Toggle(l10n.s.mouseNavigationEnable, isOn: $mouseNavigationEnabled)
-                    .labelsHidden()
-                    .onChange(of: mouseNavigationEnabled) { _, enabled in
-                        MouseNavigationService.shared.syncWithPreferences()
-                        if enabled { permissions.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if mouseNavigationEnabled, mouseNavigation.isRunning {
                 activeBadge(l10n.s.mouseNavigationActiveNow)
@@ -430,12 +401,7 @@ struct MouseSettings: View {
         SettingsCard {
             SettingsRow(symbol: "cursorarrow.click.badge.clock", title: mouseClickDebounceText.title,
                         caption: mouseClickDebounceText.caption) {
-                Toggle(mouseClickDebounceText.title, isOn: $mouseClickDebounceEnabled)
-                    .labelsHidden()
-                    .onChange(of: mouseClickDebounceEnabled) { _, enabled in
-                        MouseClickDebounceService.shared.syncWithPreferences()
-                        if enabled { permissions.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if mouseClickDebounceEnabled {
                 VStack(alignment: .leading, spacing: 6) {
@@ -464,12 +430,7 @@ struct MouseSettings: View {
         SettingsCard(title: l10n.s.middleClickSection) {
             SettingsRow(symbol: "hand.tap", title: l10n.s.middleClickEnable,
                         caption: l10n.s.middleClickEnableCaption) {
-                Toggle(l10n.s.middleClickEnable, isOn: $middleClickEnabled)
-                    .labelsHidden()
-                    .onChange(of: middleClickEnabled) { _, enabled in
-                        MiddleClickService.shared.syncWithPreferences()
-                        if enabled { permissions.requestAccessibility() }
-                    }
+                EmptyView()
             }
             if middleClickEnabled {
                 VStack(alignment: .leading, spacing: 8) {

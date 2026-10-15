@@ -563,23 +563,32 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var detail: some View {
-        switch router.page {
-        case .general:
-            if let anchor = router.destination.sectionAnchor,
-               [.panelConfiguration, .mixer, .soundOutputSwitcher,
-                .audioPriority, .musicBlocking].contains(anchor),
-               sidebarItems.contains(where: { $0.destination == router.destination }) {
-                GeneralToolSettings(anchor: anchor)
-            } else {
-                GeneralSettings()
-            }
+        if router.page == .general, let anchor = router.destination.sectionAnchor,
+           GeneralToolSettings.anchors.contains(anchor),
+           sidebarItems.contains(where: { $0.destination == router.destination }) {
+            GeneralToolSettings(anchor: anchor)
+        } else {
+            SettingsPageContent(page: router.page, anchor: router.destination.sectionAnchor)
+        }
+    }
+}
+
+/// One Settings page's own view, shared by the window and the inline options
+/// of a category page's feature rows.
+struct SettingsPageContent: View {
+    let page: SettingsPage
+    var anchor: SettingsSectionAnchor? = nil
+
+    var body: some View {
+        switch page {
+        case .general: GeneralSettings()
         case .features: FeatureHubSettings()
         case .textSnippets: TextSnippetsSettings()
         case .notch: NotchSettings()
         case .notchMascot: NotchMascotSettings()
         case .radialMenu: RadialMenuSettings()
         case .commandBar: CommandBarSettings()
-        case .energy: EnergySettings(focus: router.destination.sectionAnchor)
+        case .energy: EnergySettings(focus: anchor)
         case .monitor: MonitorSettings()
         case .mouse: MouseSettings()
         case .switcher: SwitcherSettings()

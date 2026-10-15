@@ -37,10 +37,6 @@ struct ClipboardSettings: View {
         Form {
             if AppFeature.clipboardHistory.isAvailable {
                 Section {
-                    Toggle(text.enable, isOn: $enabled)
-                        .onChange(of: enabled) { _, _ in
-                            ClipboardHistoryService.shared.syncWithPreferences()
-                        }
                     Text(text.caption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -107,10 +103,6 @@ struct ClipboardSettings: View {
 
             if AppFeature.pastePlain.isAvailable {
                 Section {
-                    Toggle(l10n.s.pastePlainName, isOn: $pastePlainEnabled)
-                        .onChange(of: pastePlainEnabled) { _, _ in
-                            PastePlainService.shared.syncWithPreferences()
-                        }
                     Text(l10n.s.pastePlainCaption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
