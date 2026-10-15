@@ -7,13 +7,10 @@ import SwiftUI
 struct NotchDownloadsSettingsControls: View {
     @ObservedObject private var downloads = NotchDownloadService.shared
     @ObservedObject private var l10n = L10n.shared
-    @AppStorage(DefaultsKey.notchDownloadsEnabled) private var enabled = true
     private var text: NotchFilesStrings { FeatureStrings.notchFiles(l10n.language) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Toggle(text.downloadsTitle, isOn: $enabled)
-                .disabled(!AppFeature.notchDownloads.isAvailable)
             Text(text.downloadsHint).font(.caption).foregroundStyle(.secondary)
             if downloads.folderUnavailable {
                 Text(text.folderUnavailable).font(.caption).foregroundStyle(.orange)
@@ -27,7 +24,6 @@ struct NotchDownloadsSettingsControls: View {
                 }
             }.controlSize(.small)
         }
-        .onChange(of: enabled) { NotchService.shared.syncWithPreferences() }
     }
 }
 

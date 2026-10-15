@@ -536,7 +536,7 @@ struct NotchSettings: View {
                 // is left out rather than shown waiting for Power.
                 let hasBattery = PowerSampler.hasInternalBattery
                 let batteryAvailable = AppFeature.monitorPower.isAvailable
-                let accessoriesAvailable = AppFeature.notchAccessories.isAvailable && AppFeature.monitorPower.isAvailable
+                let accessoriesAvailable = AppFeature.monitorPower.isAvailable
                 let clipboardAvailable = AppFeature.clipboardHistory.isAvailable && clipboardHistoryEnabled
                     && NotchSupport.modules().contains(.clipboard)
                 let capturesAvailable = AppFeature.screenshot.isAvailable && NotchSupport.modules().contains(.captures)
@@ -571,13 +571,13 @@ struct NotchSettings: View {
                                    reason: AppFeature.monitorPower.enableReason(l10n), reservesReason: reserves,
                                    unavailableAction: { AppFeature.monitorPower.showInFeatures() })
                     }
-                    toggleCard(FeatureStrings.notchActivities(l10n.language).accessories, symbol: "headphones", value: $accessoriesEnabled,
-                              available: accessoriesAvailable,
-                              reason: (AppFeature.monitorPower.isAvailable ? AppFeature.notchAccessories : .monitorPower).enableReason(l10n),
+                    toggleCard(FeatureStrings.notchActivities(l10n.language).accessories, symbol: "headphones", value: Binding(
+                                  get: { AppFeature.notchAccessories.isAvailable },
+                                  set: { FeatureRuntime.shared.setAvailable([.notchAccessories], $0) }),
+                              available: AppFeature.monitorPower.isAvailable,
+                              reason: AppFeature.monitorPower.enableReason(l10n),
                               reservesReason: reserves,
-                              unavailableAction: {
-                                  (AppFeature.monitorPower.isAvailable ? AppFeature.notchAccessories : .monitorPower).showInFeatures()
-                              })
+                              unavailableAction: { AppFeature.monitorPower.showInFeatures() })
                     toggleCard(FeatureStrings.clipboard(l10n.language).title, symbol: "doc.on.clipboard", value: $clipboard,
                                available: clipboardAvailable, reason: clipboardFeedbackReason, reservesReason: reserves,
                                unavailableAction: { openClipboardFeedbackSetup() })

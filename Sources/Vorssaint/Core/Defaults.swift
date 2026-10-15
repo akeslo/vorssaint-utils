@@ -2306,6 +2306,11 @@ enum Defaults {
     static func migrateOneSwitch(in defaults: UserDefaults) {
         guard !defaults.bool(forKey: DefaultsKey.oneSwitchMigrated) else { return }
         for feature in AppFeature.allCases {
+            // Installed with every option off ran nothing, so it reads off.
+            if !feature.optionKeys.isEmpty, !feature.optionKeys.contains(where: defaults.bool(forKey:)),
+               defaults.bool(forKey: feature.availabilityKey) {
+                defaults.set(false, forKey: feature.availabilityKey)
+            }
             guard let key = feature.masterKey else { continue }
             let on = defaults.bool(forKey: feature.availabilityKey) && defaults.bool(forKey: key)
             if defaults.bool(forKey: feature.availabilityKey) != on {

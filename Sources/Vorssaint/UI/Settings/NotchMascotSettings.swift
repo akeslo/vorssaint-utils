@@ -12,7 +12,6 @@ struct NotchMascotSettings: View {
     @ObservedObject private var l10n = L10n.shared
     /// Redraws when the island or the Command Bar is installed or removed.
     @ObservedObject private var features = FeatureRuntime.shared
-    @AppStorage(DefaultsKey.notchEnabled) private var islandEnabled = false
     @AppStorage(DefaultsKey.notchSilhouette) private var silhouette = NotchSilhouette.capsule.rawValue
     @AppStorage(DefaultsKey.notchMascotEnabled) private var enabled = false
     @AppStorage(DefaultsKey.notchMascotVisits) private var visits = true
@@ -39,7 +38,7 @@ struct NotchMascotSettings: View {
     private var restingSide: NotchMascotSide { NotchMascotSide(rawValue: side) ?? .left }
 
     /// The island it lives in is installed and on.
-    private var islandOn: Bool { features.isAvailable(.notch) && islandEnabled }
+    private var islandOn: Bool { features.isAvailable(.notch) }
 
     /// It rests beside a camera, real or drawn, so the side it takes matters.
     /// A capsule holds it in the middle.
@@ -53,7 +52,6 @@ struct NotchMascotSettings: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
-                if !islandOn { islandNote }
                 NotchMascotStageCard(look: look, side: restingSide, awake: enabled, canGreet: enabled && islandOn,
                                      visits: visits, reactions: reactions, hides: hidesWhenIdle, text: text,
                                      language: l10n.language)
@@ -72,41 +70,7 @@ struct NotchMascotSettings: View {
                 Text(text.hint).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 12)
-            Toggle(text.title, isOn: $enabled).labelsHidden().toggleStyle(.switch)
-                .accessibilityLabel(text.title)
         }
-    }
-
-    /// With the island off or uninstalled the companion has nowhere to live,
-    /// so the page says so and offers the way to bring the island back.
-    private var islandNote: some View {
-        let installed = features.isAvailable(.notch)
-        let notch = FeatureStrings.notch(l10n.language)
-        return HStack(spacing: 12) {
-            Image(systemName: AppFeature.notch.symbolName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 26, height: 26)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(text.livesInIsland)
-                if !installed {
-                    Text(AppFeature.notch.enableReason(l10n)).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 12)
-            if installed {
-                Button(notch.enable) {
-                    // The island runs while any extension is on, the companion included.
-                    FeatureRuntime.shared.setAvailable([.notchMascot], true)
-                }
-            } else {
-                Button(editor.openFeatures) { AppFeature.notch.showInFeatures() }
-            }
-        }
-        .padding(12)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // MARK: Appearance
