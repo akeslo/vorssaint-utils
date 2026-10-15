@@ -128,6 +128,12 @@ enum SettingsDirectory {
         }
         var items = SettingsSearchSupport.combinedItems(pageItems: pageItems,
                                                         featureItems: featureItems)
+        // Category pages head the results of features that are off.
+        items += FeatureGroup.allCases.map { group in
+            SettingsSearchItem(id: .page(.category(group)),
+                               destination: FeatureSettingsDestination(.category(group)),
+                               title: group.title(hub), icon: group.symbolName)
+        }
         items.append(SettingsSearchItem(
             id: .setting(.panelConfiguration),
             destination: FeatureSettingsDestination(
@@ -255,13 +261,6 @@ enum SettingsDirectory {
                                         (.audioPriority, [s.audioPrioritySection]),
                                         (.keepAwake, [s.globalHotkeySection, s.hotkeyToggle]),
                                        ]),
-                // Searching any feature name lands here even when the feature
-                // is hidden, so the hub is always the way back.
-                SettingsDirectoryItem(page: .features, title: FeatureStrings.hub(language).pageTitle,
-                                       icon: "square.grid.2x2",
-                                       featureKeywords: AppFeature.allCases.map {
-                                        ($0, [$0.hubTitle(s, hub: FeatureStrings.hub(language), language: language)])
-                                       }),
                 SettingsDirectoryItem(page: .energy, title: s.tabEnergy, icon: "bolt.fill",
                                        featureKeywords: [
                                         (.keepAwake, [s.keepAwakeTitle, s.clamshellTitle,

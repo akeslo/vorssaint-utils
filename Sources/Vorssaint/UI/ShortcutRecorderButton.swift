@@ -318,9 +318,13 @@ struct ShortcutPreferenceRow: View {
     private let superKeyModifiers: GlobalShortcutModifiers
     private let includeInactiveConflicts: Bool
     private let reservesClearButtonSpace: Bool
+    /// Set for rows whose shortcut is on exactly while one is recorded: this
+    /// bool says whether it is, Delete clears it, and recording sets it.
+    private let recordedKey: String?
     private let onChange: () -> Void
     private let additionalConflict: (GlobalShortcut) -> String?
     @AppStorage private var rawValue: String
+    @AppStorage private var recorded: Bool
     @State private var errorText: String?
     @State private var isRecording = false
     @State private var pendingTakeOver: GlobalShortcut?
@@ -336,6 +340,7 @@ struct ShortcutPreferenceRow: View {
          superKeyModifiers: GlobalShortcutModifiers = .validMask,
          includeInactiveConflicts: Bool = false,
          reservesClearButtonSpace: Bool = false,
+         recordedKey: String? = nil,
          additionalConflict: @escaping (GlobalShortcut) -> String? = { _ in nil },
          onChange: @escaping () -> Void) {
         self.role = role
@@ -349,9 +354,12 @@ struct ShortcutPreferenceRow: View {
         self.superKeyModifiers = superKeyModifiers
         self.includeInactiveConflicts = includeInactiveConflicts
         self.reservesClearButtonSpace = reservesClearButtonSpace
+        self.recordedKey = recordedKey
         self.additionalConflict = additionalConflict
         self.onChange = onChange
         _rawValue = AppStorage(wrappedValue: role.defaultShortcut.storageValue, role.storageKey)
+        // Without a recordedKey nothing ever writes this, so the key is never stored.
+        _recorded = AppStorage(wrappedValue: true, recordedKey ?? "\(role.storageKey).recordedUnused")
     }
 
     var body: some View {
@@ -368,9 +376,10 @@ struct ShortcutPreferenceRow: View {
                         ShortcutRecorderButton(shortcut: pendingTakeOver ?? shortcut,
                                                isEnabled: isEnabled,
                                                waitingTitle: l10n.s.shortcutPressKeys,
-                                               emptyTitle: role.supportsClearing && assignedShortcut == nil
+                                               emptyTitle: (role.supportsClearing && assignedShortcut == nil
+                                                            || recordedKey != nil && !recorded)
                                                    && pendingTakeOver == nil ? l10n.s.shortcutNone : nil,
-                                               clearAction: role.supportsClearing ? clear : nil,
+                                               clearAction: canClear ? clear : nil,
                                                notCapturedAction: { errorText = l10n.s.shortcutNotCaptured },
                                                recordingChanged: { recording in
                                                    isRecording = recording
@@ -403,7 +412,7 @@ struct ShortcutPreferenceRow: View {
                                 .accessibilityHidden(true)
                         }
                         Button(l10n.s.shortcutReset, action: reset)
-                        .disabled(!isEnabled || (assignedShortcut == role.defaultShortcut))
+                        .disabled(!isEnabled || (recorded && assignedShortcut == role.defaultShortcut))
                     }
                     if let alternative = superKeyAlternative {
                         Text(String(format: FeatureStrings.shortcuts(l10n.language)
@@ -420,7 +429,7 @@ struct ShortcutPreferenceRow: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             } else if isRecording {
-                Text(ShortcutRecordingCaption.text(l10n.s, canClear: role.supportsClearing))
+                Text(ShortcutRecordingCaption.text(l10n.s, canClear: canClear))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -429,6 +438,7 @@ struct ShortcutPreferenceRow: View {
                                             onAccept: {
                                                 rawValue = pendingTakeOver.storageValue
                                                 SystemShortcutTakeover.setTakeOver(role.storageKey, true)
+                                                markRecorded(true)
                                                 self.pendingTakeOver = nil
                                                 onChange()
                                             },
@@ -449,12 +459,18 @@ struct ShortcutPreferenceRow: View {
         role.assignedShortcut(storedValue: { _ in rawValue })
     }
 
+    /// Roles that store a cleared value, and rows on exactly while recorded.
+    private var canClear: Bool { role.supportsClearing || recordedKey != nil }
+
     private func clear() {
-        guard role.supportsClearing else { return }
-        rawValue = GlobalShortcutRole.clearedShortcutStorageValue
+        guard canClear else { return }
+        if role.supportsClearing {
+            rawValue = GlobalShortcutRole.clearedShortcutStorageValue
+            pendingTakeOver = nil
+            SystemShortcutTakeover.setTakeOver(role.storageKey, false)
+        }
+        markRecorded(false)
         errorText = nil
-        pendingTakeOver = nil
-        SystemShortcutTakeover.setTakeOver(role.storageKey, false)
         onChange()
     }
 
@@ -470,6 +486,12 @@ struct ShortcutPreferenceRow: View {
         return assignedShortcut.superKeyAlternative(
             sourceLabel: FeatureStrings.superKey(l10n.language).sourceLabel(superKey.source),
             superKeyModifiers: superKeyModifiers)
+    }
+
+    /// Only rows with a recordedKey store it, and only on a real change.
+    private func markRecorded(_ value: Bool) {
+        guard recordedKey != nil, recorded != value else { return }
+        recorded = value
     }
 
     private func save(_ shortcut: GlobalShortcut) {
@@ -507,6 +529,7 @@ struct ShortcutPreferenceRow: View {
             return
         case .save(let clearTakeOver):
             rawValue = shortcut.storageValue
+            markRecorded(true)
             errorText = nil
             if clearTakeOver { SystemShortcutTakeover.setTakeOver(role.storageKey, false) }
         }
