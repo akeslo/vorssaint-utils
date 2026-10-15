@@ -7,7 +7,7 @@ import Foundation
 /// The Settings pages. Lives here (without SwiftUI) so the visibility rules
 /// below and the unit tests can reason about pages without pulling UI in.
 enum SettingsPage: Hashable {
-    case general, features, energy, monitor
+    case general, energy, monitor
     case mouse, switcher, dock, keyDebounce, superKey, cutPaste, autoQuit, quitProtection, cleaner, uninstaller, urlCleaner, homebrew, appUpdates, media, clipboard, windowLayout, shelf, quickTools, textSnippets, screenshot, radialMenu, commandBar, killProcess, portManager, breakReminders, notch, notchMascot
     case shortcuts, advanced, about, releaseNotes, support
     /// One sidebar row per feature group, listing every feature of it.
@@ -273,11 +273,11 @@ final class SettingsRouter: ObservableObject {
 }
 
 extension AppFeature {
-    /// The hub itself is the honest fallback for features without a separate
-    /// configuration surface, but linking a row back to its current page would
-    /// present a chevron that appears to do nothing.
+    /// The category page is the fallback for features with no options of
+    /// their own; linking a row back to its own page would do nothing.
     var hasNavigableSettingsDestination: Bool {
-        settingsDestination.page != .features
+        if case .category = settingsDestination.page { return false }
+        return true
     }
 
     /// Exhaustive by design: adding an AppFeature requires choosing its
@@ -326,7 +326,7 @@ extension AppFeature {
             return FeatureSettingsDestination(.cutPaste, sectionAnchor: .finderRename)
         case .shelf: return FeatureSettingsDestination(.shelf)
         case .urlCleaner: return FeatureSettingsDestination(.urlCleaner)
-        case .diskImageInstaller: return FeatureSettingsDestination(.features)
+        case .diskImageInstaller: return FeatureSettingsDestination(.category(.clipboardFiles))
         case .breakReminders: return FeatureSettingsDestination(.breakReminders)
         case .clipboardImageOptimizer:
             return FeatureSettingsDestination(.clipboard, sectionAnchor: .clipboardImageOptimizer)
@@ -434,7 +434,7 @@ enum FeatureVisibilitySupport {
         case .notchMascot: return [.notchMascot]
         case .radialMenu: return [.radialMenu]
         case .commandBar: return [.commandBar]
-        case .general, .features, .shortcuts, .advanced, .about, .releaseNotes, .support, .category:
+        case .general, .shortcuts, .advanced, .about, .releaseNotes, .support, .category:
             return []
         }
     }

@@ -25,6 +25,9 @@ struct AdvancedSettings: View {
 
     var body: some View {
         Form {
+            Section(FeatureStrings.hub(l10n.language).tabPermissions) {
+                PermissionsPortalSections(hub: FeatureStrings.hub(l10n.language))
+            }
             Section(backup.title) {
                 Text(backup.description)
                     .font(.caption)

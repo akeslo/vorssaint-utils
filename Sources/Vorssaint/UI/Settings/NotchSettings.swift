@@ -316,7 +316,7 @@ struct NotchSettings: View {
                     let available = module.isAvailable()
                     NotchSectionHeader(module: module, shown: isShown(module),
                                        reason: available ? nil : moduleFeature(module).map { $0.enableReason(l10n) } ?? text.disabled) {
-                        SettingsRouter.shared.request(FeatureSettingsDestination(.features), targetFeature: moduleFeature(module))
+                        SettingsRouter.shared.request(FeatureSettingsDestination(.category(.dynamicIsland)), targetFeature: moduleFeature(module))
                     }
                     if !wide { preview(width: detailWidth, limit: 280) }
                     if available, hasOptions(module) {

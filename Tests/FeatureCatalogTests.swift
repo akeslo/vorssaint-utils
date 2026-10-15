@@ -666,43 +666,6 @@ enum FeatureCatalogTests {
             suite.expect(false, "Watch availability suite can be created")
         }
 
-        // The Features page offers installed switches that were never turned
-        // on. Only switches nothing else leans on qualify, and only while
-        // they are off and were never saved.
-        let offeredWhenUnused = AppFeature.offeredWhenNeverSwitchedOn
-        suite.expect(!offeredWhenUnused.contains(.notch) && !offeredWhenUnused.contains(.shelf)
-                && !offeredWhenUnused.contains(.textSnippets) && !offeredWhenUnused.contains(.switcher)
-                && !offeredWhenUnused.contains(.radialMenu)
-                && offeredWhenUnused.allSatisfy { !$0.enabledKeys.isEmpty && $0.group != .dynamicIsland },
-               "features other features lean on are never offered for uninstalling as unused")
-        let everythingInstalled: (AppFeature) -> Bool = { _ in true }
-        suite.expect(AppFeature.neverSwitchedOn(isAvailable: everythingInstalled, boolFor: { _ in false },
-                                                isSaved: { _ in false }) == offeredWhenUnused,
-               "an install where nothing was ever switched on offers the whole list")
-        suite.expect(!AppFeature.neverSwitchedOn(isAvailable: everythingInstalled, boolFor: { _ in false },
-                                                 isSaved: { $0 == DefaultsKey.superKeyEnabled }).contains(.superKey),
-               "a switch turned on and back off keeps its feature off the offer")
-        suite.expect(!AppFeature.neverSwitchedOn(isAvailable: everythingInstalled,
-                                                 boolFor: { $0 == DefaultsKey.dockClickHide },
-                                                 isSaved: { _ in false }).contains(.dockClick),
-               "any one switch that is on keeps a feature with several switches")
-        suite.expect(!AppFeature.neverSwitchedOn(isAvailable: { $0 != .windowMaximizer }, boolFor: { _ in false },
-                                                 isSaved: { _ in false }).contains(.windowMaximizer),
-               "an uninstalled feature is never offered")
-        // The scroll axes migration saves the horizontal switch on every Mac
-        // at launch, before any registered default exists.
-        let migratedAxesSuiteName = "com.vorssaint.tests.never-switched-on.\(UUID().uuidString)"
-        if let migratedAxesDefaults = UserDefaults(suiteName: migratedAxesSuiteName) {
-            Defaults.migrateScrollInverterAxes(in: migratedAxesDefaults)
-            let migrated = migratedAxesDefaults.persistentDomain(forName: migratedAxesSuiteName) ?? [:]
-            suite.expect(migrated[DefaultsKey.scrollInverterHorizontalEnabled] != nil
-                    && AppFeature.neverSwitchedOn(isAvailable: everythingInstalled, boolFor: { _ in false },
-                                                  isSaved: { migrated[$0] != nil }).contains(.scrollInverter),
-                   "the scroll direction a launch migration saved still counts as never switched on")
-            migratedAxesDefaults.removePersistentDomain(forName: migratedAxesSuiteName)
-        } else {
-            suite.expect(false, "never switched on migration suite can be created")
-        }
         suite.expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.featureHubKeptFeatures),
                "features someone chose to keep travel in backups, so a restored Mac never offers them again")
         suite.expect(FeatureGroup.allCases.map { AppFeature.features(in: $0).count }.reduce(0, +)
@@ -775,32 +738,11 @@ enum FeatureCatalogTests {
         suite.expect(FeaturePreset.allCases.allSatisfy { !$0.features.contains(.fanControl) },
                "no first-run preset installs a feature whose hardware the Mac may lack")
 
-        let featureHubSource = (try? String(
-            contentsOfFile: "Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift",
-            encoding: .utf8)) ?? ""
         let onboardingFeatureSource = (try? String(
             contentsOfFile: "Sources/Vorssaint/UI/Onboarding/OnboardingView.swift",
             encoding: .utf8)) ?? ""
-        suite.expect(featureHubSource.contains("installBlockedReason")
-                && onboardingFeatureSource.contains("installBlockedReason"),
-               "both feature pickers refuse an unsupported install from the same rule")
-        suite.expect(featureHubSource.contains("installableCount"),
-               "the hub counts against what this Mac can install, so install-all can finish")
-        // Issue #2270: nested in the page's plain stack, the lazy stack resized
-        // it as group cards came into view and could keep redoing its layout
-        // until Settings froze. A source check on the page's `content` with
-        // comment lines dropped: it keeps that structure from coming back, not
-        // the scrolling itself, which only a scroll run shows.
-        let hubContentCode = featureHubSource
-            .components(separatedBy: "private var content: some View {").dropFirst().first?
-            .components(separatedBy: "\n    }\n").first ?? ""
-        let compactHubContent = hubContentCode.split(separator: "\n")
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined()
-            .filter { !$0.isWhitespace }
-        suite.expect(compactHubContent.components(separatedBy: "LazyVStack(").count == 2
-                && compactHubContent.contains("ScrollView{LazyVStack("),
-               "the hub's one lazy stack is its scroll view's own content, never nested in another stack")
+        suite.expect(onboardingFeatureSource.contains("installBlockedReason"),
+               "onboarding refuses an unsupported install")
         suite.expect(AppFeature.diskImageInstaller.group == .clipboardFiles
                 && AppFeature.diskImageInstaller.enabledKeys.isEmpty
                 && AppFeature.diskImageInstaller.permissions == [.appManagement]
@@ -2090,7 +2032,7 @@ enum FeatureCatalogTests {
         suite.expect(AppFeature.musicBlock.settingsDestination
                 == FeatureSettingsDestination(.general, sectionAnchor: .musicBlocking)
                 && AppFeature.diskImageInstaller.settingsDestination
-                == FeatureSettingsDestination(.features),
+                == FeatureSettingsDestination(.category(.clipboardFiles)),
                "features without dedicated pages use explicit nearest Settings destinations")
         suite.expect(!AppFeature.diskImageInstaller.hasNavigableSettingsDestination
                 && AppFeature.allCases.filter { $0 != .diskImageInstaller }
@@ -2138,7 +2080,7 @@ enum FeatureCatalogTests {
         suite.expect(settingsRouter.pendingDestinationRequest == nil,
                "a handled Settings destination request is cleared")
 
-        let featuresDestination = FeatureSettingsDestination(.features)
+        let featuresDestination = FeatureSettingsDestination(.category(AppFeature.homebrew.group))
         settingsRouter.request(featuresDestination, targetFeature: .homebrew)
         let firstFeatureTargetRequestID = settingsRouter.requestID
         suite.expect(settingsRouter.pendingFeatureTarget?.id == firstFeatureTargetRequestID
@@ -2221,9 +2163,9 @@ enum FeatureCatalogTests {
                 && historyRouter.requestID == branchedHistoryRequestID,
                "a new sidebar visit after Back discards forward history")
         historyRouter.goBack()
-        historyRouter.request(FeatureSettingsDestination(.features), targetFeature: .homebrew)
+        historyRouter.request(FeatureSettingsDestination(.category(AppFeature.homebrew.group)), targetFeature: .homebrew)
         historyRouter.goForward()
-        suite.expect(historyRouter.page == .features,
+        suite.expect(historyRouter.page == .category(AppFeature.homebrew.group),
                "a destination request after Back also discards forward history")
         historyRouter.page = .advanced
         suite.expect(historyRouter.destination == FeatureSettingsDestination(.advanced)

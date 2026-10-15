@@ -510,7 +510,6 @@ struct SettingsPageContent: View {
     var body: some View {
         switch page {
         case .general: GeneralSettings()
-        case .features: FeatureHubSettings()
         case .textSnippets: TextSnippetsSettings()
         case .notch: NotchSettings()
         case .notchMascot: NotchMascotSettings()
