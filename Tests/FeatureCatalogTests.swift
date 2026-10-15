@@ -520,44 +520,44 @@ enum FeatureCatalogTests {
         suite.expect(AppFeature.switcher.availabilityKey == "featureAvailable.switcher",
                "availability key derives from the raw value")
 
-        let installSuiteName = "com.vorssaint.tests.feature-install.\(UUID().uuidString)"
-        if let installDefaults = UserDefaults(suiteName: installSuiteName) {
-            func savedValues() -> [String: Any] {
-                installDefaults.persistentDomain(forName: installSuiteName) ?? [:]
-            }
-            for feature in AppFeature.allCases
-            where !feature.enabledKeys.isEmpty && feature != .notchLiveEqualizer {
-                feature.enableOnFirstInstall(in: installDefaults, savedValues: savedValues())
-                suite.expect(feature.enabledKeys.contains {
-                    savedValues()[$0] as? Bool == true
-                }, "a new \(feature.rawValue) install saves an enabled main control")
-                for key in feature.enabledKeys { installDefaults.removeObject(forKey: key) }
-            }
-            AppFeature.notchLiveEqualizer.enableOnFirstInstall(in: installDefaults,
-                                                                savedValues: savedValues())
-            suite.expect(savedValues()[DefaultsKey.notchLiveEqualizer] == nil,
-                   "installing the live equalizer leaves its audio recording switch off")
-            AppFeature.windowLayout.enableOnFirstInstall(in: installDefaults,
-                                                          savedValues: savedValues())
-            suite.expect(installDefaults.bool(forKey: DefaultsKey.windowLayoutShortcutsEnabled),
-                   "a new window layout install enables its shortcuts")
-            installDefaults.set(false, forKey: DefaultsKey.autoQuitEnabled)
-            AppFeature.autoQuit.enableOnFirstInstall(in: installDefaults, savedValues: savedValues())
-            suite.expect(!installDefaults.bool(forKey: DefaultsKey.autoQuitEnabled),
-                   "reinstalling Quit on close preserves an explicit off choice")
-            installDefaults.set(true, forKey: DefaultsKey.dockClickHide)
-            AppFeature.dockClick.enableOnFirstInstall(in: installDefaults, savedValues: savedValues())
-            suite.expect(!installDefaults.bool(forKey: DefaultsKey.dockClickMinimize),
-                   "a saved alternative does not activate another Dock click action")
-            installDefaults.removePersistentDomain(forName: installSuiteName)
+        if let migrateDefaults = UserDefaults(suiteName: "com.vorssaint.tests.one-switch") {
+            migrateDefaults.removePersistentDomain(forName: "com.vorssaint.tests.one-switch")
+            migrateDefaults.set(true, forKey: AppFeature.switcher.availabilityKey)
+            migrateDefaults.set(false, forKey: DefaultsKey.switcherEnabled)
+            migrateDefaults.set(true, forKey: AppFeature.brightness.availabilityKey)
+            migrateDefaults.set(true, forKey: DefaultsKey.brightnessControlEnabled)
+            migrateDefaults.set(true, forKey: DefaultsKey.brightnessKeysEnabled)
+            migrateDefaults.set(false, forKey: AppFeature.shelf.availabilityKey)
+            migrateDefaults.set(true, forKey: DefaultsKey.shelfEnabled)
+            migrateDefaults.set(true, forKey: AppFeature.dockClick.availabilityKey)
+            Defaults.migrateOneSwitch(in: migrateDefaults)
+            suite.expect(!migrateDefaults.bool(forKey: AppFeature.switcher.availabilityKey)
+                         && migrateDefaults.bool(forKey: AppFeature.brightness.availabilityKey)
+                         && !migrateDefaults.bool(forKey: AppFeature.shelf.availabilityKey)
+                         && !migrateDefaults.bool(forKey: DefaultsKey.shelfEnabled)
+                         && migrateDefaults.bool(forKey: AppFeature.dockClick.availabilityKey),
+                         "a feature stays on only if installed and its master switch was on or absent")
+            migrateDefaults.set(true, forKey: DefaultsKey.switcherEnabled)
+            Defaults.migrateOneSwitch(in: migrateDefaults)
+            suite.expect(!migrateDefaults.bool(forKey: AppFeature.switcher.availabilityKey),
+                         "the one-switch migration runs once")
+            suite.expect(AppFeature.dockClick.masterKey == nil
+                         && AppFeature.switcher.masterKey == DefaultsKey.switcherEnabled,
+                         "only pure on/off switches become availability aliases")
+            suite.expect(AppFeature.switcher.state(defaults: migrateDefaults, hardwareReason: nil,
+                                                   isMissing: { _ in true }) == .off
+                         && AppFeature.brightness.state(defaults: migrateDefaults, hardwareReason: nil,
+                                                        isMissing: { _ in true })
+                            == .blocked(.permission(.accessibility))
+                         && AppFeature.brightness.state(defaults: migrateDefaults, hardwareReason: "x",
+                                                        isMissing: { _ in false }) == .blocked(.hardware("x"))
+                         && AppFeature.brightness.state(defaults: migrateDefaults, hardwareReason: nil,
+                                                        isMissing: { _ in false }) == .on,
+                         "feature state reads off, blocked and on")
+            migrateDefaults.removePersistentDomain(forName: "com.vorssaint.tests.one-switch")
         } else {
-            suite.expect(false, "feature install defaults suite can be created")
+            suite.expect(false, "one-switch defaults suite can be created")
         }
-        let runtimeSource = (try? String(contentsOfFile: "Sources/Vorssaint/App/FeatureRuntime.swift",
-                                         encoding: .utf8)) ?? ""
-        suite.expect(runtimeSource.contains(
-            "setAvailable(AppFeature.allCases, available, enablingFirstInstalls: false)"),
-               "install all makes features available without switching on their behavior")
 
         // Most updating installs never saved an availability, so this list is
         // what they have: a feature leaving it would vanish for all of them.
@@ -677,10 +677,6 @@ enum FeatureCatalogTests {
         }
         suite.expect(SettingsBackupSupport.exportKeys().contains(DefaultsKey.featureHubKeptFeatures),
                "features someone chose to keep travel in backups, so a restored Mac never offers them again")
-        let hubUndoSource = (try? String(contentsOfFile: "Sources/Vorssaint/UI/Settings/FeatureHubSettings.swift",
-                                         encoding: .utf8)) ?? ""
-        suite.expect(hubUndoSource.contains("setAvailable(batch, true, enablingFirstInstalls: false)"),
-               "undoing the offer reinstalls without switching on what was never on")
         suite.expect(FeatureGroup.allCases.map { AppFeature.features(in: $0).count }.reduce(0, +)
                 == AppFeature.allCases.count,
                "every feature belongs to exactly one group")

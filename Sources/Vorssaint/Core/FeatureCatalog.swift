@@ -300,33 +300,10 @@ extension AppFeature {
         }
     }
 
-    /// Turn on the feature's main behavior at install time. Features with
-    /// several independent controls start with one useful behavior, except
-    /// audio priority, whose output and input controls work together. The
-    /// live equalizer stays off: it asks for system audio recording on the
-    /// first song, so only the user's own switch turns it on.
-    private var initialEnableKeys: [String] {
-        switch self {
-        case .windowLayout: return [DefaultsKey.windowLayoutShortcutsEnabled]
-        case .audioPriority: return enabledKeys
-        case .notchLiveEqualizer: return []
-        default: return enabledKeys.first.map { [$0] } ?? []
-        }
-    }
-
-    /// Registered defaults are visible through `object(forKey:)`, so only the
-    /// persistent domain can tell a fresh install from a saved off choice.
-    func enableOnFirstInstall(in defaults: UserDefaults, savedValues: [String: Any]) {
-        let choices = self == .windowLayout
-            ? [DefaultsKey.windowLayoutShortcutsEnabled, DefaultsKey.windowDirectionalEnabled,
-               DefaultsKey.pointerDisplayEnabled, DefaultsKey.windowEdgeSnapEnabled,
-               DefaultsKey.windowGestureEnabled]
-            : enabledKeys
-        guard !choices.contains(where: { savedValues[$0] != nil }) else { return }
-        for key in initialEnableKeys {
-            defaults.set(true, forKey: key)
-        }
-    }
+    /// A pure on/off switch that availability now owns: every runtime reader
+    /// of it keeps working because the runtime writes it alongside the
+    /// availability key. Features with several real options have none.
+    var masterKey: String? { enabledKeys.count == 1 ? enabledKeys[0] : nil }
 
     /// Which permissions the feature can use at all. Whether it is using them
     /// RIGHT NOW is answered by `activeFeatures(using:)`, which also applies
@@ -634,5 +611,27 @@ extension AppPermission {
         case .camera: return "camera"
         case .appManagement: return "app.badge"
         }
+    }
+}
+
+/// The three states a feature row shows: off, on, or on but unable to work.
+enum FeatureState: Equatable {
+    enum Block: Equatable { case permission(AppPermission), hardware(String) }
+    case off, on, blocked(Block)
+}
+
+extension AppFeature {
+    /// Pure core of the row state; `activeFeatures(using:)` decides which
+    /// permissions the feature actually needs with its current options.
+    func state(defaults: UserDefaults = .standard, hardwareReason: String?,
+               isMissing: (AppPermission) -> Bool) -> FeatureState {
+        guard isAvailable(in: defaults) else { return .off }
+        if let hardwareReason { return .blocked(.hardware(hardwareReason)) }
+        if let missing = permissions.first(where: {
+            isMissing($0) && Self.activeFeatures(using: $0, defaults: defaults).contains(self)
+        }) {
+            return .blocked(.permission(missing))
+        }
+        return .on
     }
 }

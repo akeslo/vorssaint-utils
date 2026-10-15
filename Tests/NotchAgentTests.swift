@@ -2928,9 +2928,6 @@ enum NotchAgentTests {
                      && Defaults.registeredDefaults[DefaultsKey.notchAgentsEnabled] as? Bool == false
                      && fresh[DefaultsKey.notchInitialExtensionsInstalled] == nil,
                      "fresh profiles keep Agents off on later launches and still install the other island extensions")
-        AppFeature.notchAgents.enableOnFirstInstall(in: defaults, savedValues: fresh)
-        suite.expect(defaults.bool(forKey: DefaultsKey.notchAgentsEnabled),
-                     "explicitly installing Agents enables it on a fresh profile")
 
         defaults.removePersistentDomain(forName: domain)
         defaults.set(true, forKey: DefaultsKey.notchEnabled)

@@ -998,6 +998,7 @@ enum DefaultsKey {
     /// Registered true: unavailable features vanish from every surface and
     /// hold no resources, without ever touching their own enable keys.
     static func featureAvailable(_ id: String) -> String { "featureAvailable.\(id)" }
+    static let oneSwitchMigrated = "oneSwitchMigrated" // availability became the only on/off gate
 }
 
 /// Bump `currentFeatureSet` when first-run feature defaults need a quiet marker.
@@ -2049,6 +2050,7 @@ enum Defaults {
         migrateNotchWatchAvailability(in: defaults)
         defaults.register(defaults: registeredDefaults)
         defaults.register(defaults: AppFeature.availabilityDefaults)
+        migrateOneSwitch(in: defaults)
         activateBetaChannelIfRunningBeta(in: defaults)
         installCompanionForBetaCommandBar(in: defaults)
         migrateLegacyMenuBarTemperatureMetric(in: defaults)
@@ -2294,6 +2296,22 @@ enum Defaults {
               defaults.object(forKey: DefaultsKey.linearScrollEnabled) as? Bool == true
         else { return }
         defaults.set(true, forKey: AppFeature.linearScroll.availabilityKey)
+    }
+
+    /// One switch per feature: a feature stays on only if it was installed
+    /// and its master switch was on (or it had none), and the master switch
+    /// then mirrors availability. Runs once.
+    static func migrateOneSwitch(in defaults: UserDefaults) {
+        guard !defaults.bool(forKey: DefaultsKey.oneSwitchMigrated) else { return }
+        for feature in AppFeature.allCases {
+            guard let key = feature.masterKey else { continue }
+            let on = defaults.bool(forKey: feature.availabilityKey) && defaults.bool(forKey: key)
+            if defaults.bool(forKey: feature.availabilityKey) != on {
+                defaults.set(on, forKey: feature.availabilityKey)
+            }
+            if defaults.bool(forKey: key) != on { defaults.set(on, forKey: key) }
+        }
+        defaults.set(true, forKey: DefaultsKey.oneSwitchMigrated)
     }
 
     static func migrateFanControlVisibility(in defaults: UserDefaults) {
