@@ -108,11 +108,7 @@ struct SwitcherSettings: View {
         SettingsCard(title: l10n.s.switcherSection) {
             SettingsRow(symbol: "rectangle.on.rectangle", title: l10n.s.switcherEnable,
                         caption: l10n.s.switcherEnableCaption) {
-                Toggle(l10n.s.switcherEnable, isOn: $switcherEnabled)
-                    .labelsHidden()
-                    .onChange(of: switcherEnabled) { _, _ in
-                        AppSwitcher.shared.syncWithPreferences()
-                    }
+                EmptyView()
             }
             Group {
                 VStack(alignment: .leading, spacing: 8) {

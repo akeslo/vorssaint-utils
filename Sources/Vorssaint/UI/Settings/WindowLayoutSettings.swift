@@ -240,10 +240,6 @@ struct WindowLayoutSettings: View {
 
     private var windowMaximizerSection: some View {
         Section {
-            Toggle(l10n.s.windowMaximizeName, isOn: $maximizeEnabled)
-                .onChange(of: maximizeEnabled) { _, _ in
-                    WindowMaximizer.shared.syncWithPreferences()
-                }
             Text(l10n.s.windowMaximizeCaption)
                 .font(.caption)
                 .foregroundStyle(.secondary)

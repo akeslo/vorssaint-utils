@@ -22,13 +22,6 @@ struct KeyboardDebounceSettings: View {
     var body: some View {
         Form {
             Section(l10n.s.keyDebounceName) {
-                Toggle(l10n.s.keyDebounceEnable, isOn: $enabled)
-                    .onChange(of: enabled) { _, value in
-                        KeyboardDebounceService.shared.syncWithPreferences()
-                        guard value, !permissions.accessibility else { return }
-                        permissions.requestAccessibility()
-                        permissions.openAccessibilitySettings()
-                    }
                 Text(l10n.s.keyDebounceCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)

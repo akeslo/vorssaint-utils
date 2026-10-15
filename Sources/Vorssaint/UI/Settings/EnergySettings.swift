@@ -299,11 +299,7 @@ struct EnergySettings: View {
         let strings = FeatureStrings.brightness(l10n.language)
         return SettingsCard {
             SettingsRow(symbol: "display.2", title: strings.enable, caption: strings.enableCaption) {
-                Toggle(strings.enable, isOn: $brightnessEnabled)
-                    .labelsHidden()
-                    .onChange(of: brightnessEnabled) { _, _ in
-                        BrightnessService.shared.syncWithPreferences()
-                    }
+                EmptyView()
             }
             if brightnessEnabled {
                 Divider()
@@ -428,11 +424,7 @@ struct EnergySettings: View {
             if extraBrightness.supported {
                 SettingsRow(symbol: "sun.max.fill", title: l10n.s.extraBrightnessName,
                             caption: l10n.s.extraBrightnessCaption) {
-                    Toggle(l10n.s.extraBrightnessName, isOn: $extraBrightnessEnabled)
-                        .labelsHidden()
-                        .onChange(of: extraBrightnessEnabled) { _, _ in
-                            ExtraBrightnessService.shared.syncWithPreferences()
-                        }
+                    EmptyView()
                 }
                 if extraBrightnessEnabled {
                     HStack(spacing: 12) {
@@ -470,11 +462,7 @@ struct EnergySettings: View {
             if BluetoothSleepService.isSupported {
                 SettingsRow(symbol: "dot.radiowaves.left.and.right", title: strings.enable,
                             caption: strings.enableCaption) {
-                    Toggle(strings.enable, isOn: $bluetoothSleepEnabled)
-                        .labelsHidden()
-                        .onChange(of: bluetoothSleepEnabled) { _, _ in
-                            BluetoothSleepService.shared.syncWithPreferences()
-                        }
+                    EmptyView()
                 }
                 if bluetoothSleepEnabled {
                     SettingsRow(symbol: "arrow.counterclockwise", title: strings.restoreToggle,

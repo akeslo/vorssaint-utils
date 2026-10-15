@@ -8,6 +8,9 @@ import SwiftUI
 /// opening General does not also build the audio device and mixer controls.
 struct GeneralToolSettings: View {
     let anchor: SettingsSectionAnchor
+    /// General anchors that open this tool page instead of the General overview.
+    static let anchors: [SettingsSectionAnchor] = [.panelConfiguration, .mixer, .soundOutputSwitcher,
+                                                   .audioPriority, .musicBlocking]
     @ObservedObject private var l10n = L10n.shared
 
     private var text: GeneralSettingsStrings { FeatureStrings.generalSettings(l10n.language) }
@@ -238,12 +241,7 @@ private struct MusicBlockingSettings: View {
         SettingsCard(title: l10n.s.musicBlockSection) {
             SettingsRow(symbol: "playpause.fill", title: l10n.s.musicBlockTitle,
                         caption: l10n.s.musicBlockCaption) {
-                Toggle(l10n.s.musicBlockTitle, isOn: $enabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .onChange(of: enabled) { _, _ in
-                        musicBlocker.syncWithPreferences()
-                    }
+                EmptyView()
             }
             if enabled {
                 if !permissions.accessibility {

@@ -13,10 +13,6 @@ struct AutoQuitSettings: View {
     var body: some View {
         Form {
             Section {
-                Toggle(l10n.s.autoQuitEnable, isOn: $enabled)
-                    .onChange(of: enabled) { _, _ in
-                        AutoQuitService.shared.syncWithPreferences()
-                    }
                 Text(l10n.s.autoQuitEnableCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)

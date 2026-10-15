@@ -68,10 +68,6 @@ struct CutPasteSettings: View {
 
             if AppFeature.finderRename.isAvailable {
                 Section {
-                    Toggle(renameText.enableLabel, isOn: $renameEnabled)
-                        .onChange(of: renameEnabled) { _, _ in
-                            FinderRenameService.shared.syncWithPreferences()
-                        }
                     Text(renameText.caption)
                         .font(.caption)
                         .foregroundStyle(.secondary)
