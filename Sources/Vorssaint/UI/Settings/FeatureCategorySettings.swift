@@ -24,6 +24,7 @@ struct FeatureCategorySettings: View {
                         .font(.callout.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
+                if features.needsRestartToUnload { restartCard }
                 ForEach(members, id: \.self) { feature in
                     FeatureRow(feature: feature, expanded: Binding(
                         get: { expanded.contains(feature) },
@@ -38,6 +39,25 @@ struct FeatureCategorySettings: View {
         .onAppear { reveal(proxy) }
         .onChange(of: router.pendingFeatureTarget) { _, _ in reveal(proxy) }
         }
+    }
+
+    /// A feature switched off whose code stays loaded until the app restarts.
+    private var restartCard: some View {
+        let hub = FeatureStrings.hub(l10n.language)
+        return HStack(spacing: 12) {
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(Color.accentColor)
+            Text(hub.restartNote)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            Button(hub.restartButton) { FeatureRuntime.shared.relaunchApp() }
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(16)
+        .background(Color.accentColor.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     /// A search result's feature: open its options and scroll to its row.
@@ -133,10 +153,9 @@ struct FeatureRow: View {
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 
-    /// Nil when the feature has no page, or only the Features page itself.
+    /// Nil when the feature has no options page of its own.
     private var optionsPage: SettingsPage? {
-        let page = feature.settingsDestination.page
-        return feature.hasNavigableSettingsDestination && page != .features ? page : nil
+        feature.hasNavigableSettingsDestination ? feature.settingsDestination.page : nil
     }
 
     @ViewBuilder

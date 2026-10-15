@@ -410,38 +410,6 @@ extension AppFeature {
         self == .notch ? [self] + Self.dynamicIslandInitialExtensions : [self]
     }
 
-    /// Switches the Features page may offer to uninstall once they turn out
-    /// never used. Each one does nothing until its own switch is on, and no
-    /// other feature leans on it while it is off. Features that lend a part
-    /// of themselves elsewhere stay out even when off: the Dynamic Island,
-    /// the shelf behind the island's file tray, the radial menu, and the
-    /// switcher and text snippets that feed the Command Bar.
-    static let offeredWhenNeverSwitchedOn: [AppFeature] = [
-        .dockPreview, .dockClick, .windowMaximizer, .autoQuit,
-        .scrollInverter, .linearScroll, .focusFollowsMouse, .mouseAcceleration, .mouseNavigation,
-        .mouseButtonShortcuts, .middleClick, .keyboardDebounce, .mouseClickDebounce, .superKey,
-        .finderCutPaste,
-    ]
-
-    /// Installed features from that list whose switches are off and were never
-    /// saved on this Mac: installed, but not once turned on. A switch turned
-    /// on and back off is saved, so a feature someone used keeps its place.
-    static func neverSwitchedOn(isAvailable: (AppFeature) -> Bool,
-                                boolFor: (String) -> Bool,
-                                isSaved: (String) -> Bool) -> [AppFeature] {
-        offeredWhenNeverSwitchedOn.filter { feature in
-            isAvailable(feature)
-                && !feature.enabledKeys.isEmpty
-                && !feature.enabledKeys.contains(where: boolFor)
-                && !feature.enabledKeys.contains { isSaved($0) && !savedOnEveryMac.contains($0) }
-        }
-    }
-
-    /// Switches a launch migration saves on every Mac, the horizontal scroll
-    /// direction copying the vertical one, so a saved value there says
-    /// nothing about use. Only one that is on counts.
-    private static let savedOnEveryMac: Set<String> = [DefaultsKey.scrollInverterHorizontalEnabled]
-
     /// Whether a Mac that never chose this feature has it installed. Most
     /// people updating never saved an availability, so this list IS their
     /// install: moving a feature out of it uninstalls it for all of them,
