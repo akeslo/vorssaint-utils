@@ -316,105 +316,14 @@ enum UpdateFeatureTests {
                     keywords: captureSearchKeywords),
                "Screen capture tools and their options find the one settings page")
 
-        let quickToolFeatures: [AppFeature] = [.quickLauncher, .micMute, .scratchpad, .cleaningMode]
-        let quickToolRows = SettingsSidebarSupport.items(
-            page: .quickTools, title: "Quick panel", icon: "wand.and.rays",
-            preferredFeatures: quickToolFeatures, includePage: false,
-            isAvailable: { quickToolFeatures.contains($0) },
-            featureTitle: { $0.rawValue })
-        let generalFeatures: [AppFeature] = [
-            .musicBlock, .mixer, .soundOutputSwitcher, .audioPriority,
-        ]
-        let generalRows = SettingsSidebarSupport.items(
-            page: .general, title: "General", icon: "gearshape",
-            preferredFeatures: [.musicBlock], includePage: true,
-            isAvailable: { generalFeatures.contains($0) },
-            featureTitle: { $0.rawValue })
-        let toolRows = generalRows + quickToolRows
-        func toolRow(_ feature: AppFeature) -> SettingsSidebarItem? {
-            toolRows.first { $0.id == .feature(feature) }
-        }
-        suite.expect(toolRow(.musicBlock)?.icon == AppFeature.musicBlock.symbolName
-                && toolRow(.mixer)?.icon == AppFeature.mixer.symbolName
-                && toolRow(.soundOutputSwitcher)?.icon == AppFeature.soundOutputSwitcher.symbolName
-                && toolRow(.audioPriority)?.icon == AppFeature.audioPriority.symbolName
-                && toolRow(.micMute)?.icon == AppFeature.micMute.symbolName
-                && toolRow(.scratchpad)?.icon == AppFeature.scratchpad.symbolName
-                && toolRow(.cleaningMode)?.icon == AppFeature.cleaningMode.symbolName,
-               "shared Settings pages expose every anchored tool with its own symbol")
-        suite.expect(toolRows.count == Set(toolRows.map(\.id)).count
-                && !quickToolRows.contains { $0.id == .page(.quickTools) }
-                && toolRow(.mixer)?.destination
-                    == FeatureSettingsDestination(.general, sectionAnchor: .mixer)
-                && toolRow(.soundOutputSwitcher)?.destination
-                    == FeatureSettingsDestination(.general, sectionAnchor: .soundOutputSwitcher)
-                && toolRow(.audioPriority)?.destination
-                    == FeatureSettingsDestination(.general, sectionAnchor: .audioPriority)
-                && SettingsSidebarSupport.selection(for: AppFeature.scratchpad.settingsDestination,
-                                                    in: toolRows) == .feature(.scratchpad)
-                && SettingsSidebarSupport.selection(for: AppFeature.audioPriority.settingsDestination,
-                                                    in: toolRows, preferredID: .feature(.audioPriority))
-                    == .feature(.audioPriority),
-               "flat tool rows keep unique identities and select the clicked tool")
-        let menuBarDestination = FeatureSettingsDestination(
-            .general, sectionAnchor: .panelConfiguration)
-        let menuBarRow = SettingsSidebarItem(
-            id: .setting(.panelConfiguration), destination: menuBarDestination,
-            title: "Menu bar", icon: "menubar.rectangle")
-        suite.expect(SettingsSidebarSupport.selection(
-            for: FeatureSettingsDestination(.general),
-            in: generalRows + [menuBarRow]) == .page(.general)
-            && SettingsSidebarSupport.selection(
-                for: menuBarDestination,
-                in: generalRows + [menuBarRow]) == .setting(.panelConfiguration),
-            "General and its menu bar editor keep distinct sidebar selections")
-        func pageRow(_ page: SettingsPage) -> SettingsSidebarItem {
-            SettingsSidebarItem(id: .page(page), destination: FeatureSettingsDestination(page),
-                                title: "\(page)", icon: "")
-        }
-        let groupedRows = SettingsSidebarSupport.featureGroupRows(
-            windowsControls: [pageRow(.windowLayout), pageRow(.autoQuit), pageRow(.quitProtection)]
-                + [SettingsSidebarItem(id: .feature(.scrollInverter),
-                                       destination: AppFeature.scrollInverter.settingsDestination,
-                                       title: "Scroll", icon: "")],
-            utilities: quickToolRows + [pageRow(.urlCleaner), pageRow(.keyDebounce),
-                                        pageRow(.superKey), pageRow(.textSnippets),
-                                        pageRow(.radialMenu)])
-        suite.expect(groupedRows.windowsDock.map(\.id) == [.page(.windowLayout), .page(.autoQuit)]
-                && groupedRows.mouseKeyboard.map(\.id) == [
-                    .page(.quitProtection), .feature(.scrollInverter), .page(.keyDebounce),
-                    .page(.superKey), .page(.textSnippets)]
-                && groupedRows.files.map(\.id) == [.page(.urlCleaner)]
-                && groupedRows.sound.map(\.id) == [.feature(.micMute)]
-                && groupedRows.utilities.map(\.id) == [
-                    .feature(.quickLauncher), .feature(.scratchpad), .feature(.cleaningMode),
-                    .page(.radialMenu)],
-               "sidebar rows follow the Features page groups and other utilities stay put")
-        let scratchpadOnlyRows = SettingsSidebarSupport.items(
-            page: .quickTools, title: "Quick panel", icon: "wand.and.rays",
-            preferredFeatures: quickToolFeatures, includePage: false,
-            isAvailable: { $0 == .scratchpad },
-            featureTitle: { $0.rawValue })
-        suite.expect(scratchpadOnlyRows.count == 1
-                && scratchpadOnlyRows.first?.id == .feature(.scratchpad)
-                && SettingsSidebarSupport.selection(for: AppFeature.micMute.settingsDestination,
-                                                    in: scratchpadOnlyRows) == .feature(.scratchpad),
-               "the sidebar hides unavailable tools and keeps a visible selection for their page")
-        let scrollingRows = SettingsSidebarSupport.items(
-            page: .mouse, title: "Mouse", icon: "computermouse",
-            preferredFeatures: [.scrollInverter, .scrollHorizontal], includePage: false,
-            isAvailable: { [.scrollInverter, .scrollHorizontal].contains($0) },
-            featureTitle: { $0.rawValue })
-        let sidewaysOnlyRows = SettingsSidebarSupport.items(
-            page: .mouse, title: "Mouse", icon: "computermouse",
-            preferredFeatures: [.scrollInverter, .scrollHorizontal], includePage: false,
-            isAvailable: { $0 == .scrollHorizontal }, featureTitle: { $0.rawValue })
-        suite.expect(scrollingRows.count == 2
-                && Set(scrollingRows.map(\.id)) == [.feature(.scrollInverter),
-                                                    .feature(.scrollHorizontal)]
-                && scrollingRows[0].destination == scrollingRows[1].destination
-                && sidewaysOnlyRows.first?.id == .feature(.scrollHorizontal),
-               "tools sharing a section keep separate named rows")
+        let fixedRows = ([.general, .shortcuts, .about] + FeatureGroup.allCases.map {
+            SettingsPage.category($0)
+        }).map { SettingsSidebarItem(id: $0, title: "\($0)", icon: "") }
+        suite.expect(SettingsSidebarSupport.selection(for: .general, in: fixedRows) == .general
+                && SettingsSidebarSupport.selection(for: .mouse, in: fixedRows)
+                    == .category(AppFeature.scrollInverter.group)
+                && SettingsSidebarSupport.selection(for: .features, in: fixedRows) == nil,
+               "a feature's own page selects its category row")
         let keyboardDestination = FeatureSettingsDestination(
             .shortcuts, sectionAnchor: .keyboardBrightnessShortcuts)
         let keyboardShortcutItem = SettingsSearchSupport.keyboardBrightnessShortcutItem(language: .enUS)
