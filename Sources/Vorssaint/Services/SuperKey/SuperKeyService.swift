@@ -104,6 +104,10 @@ final class SuperKeyService: ObservableObject {
     /// it, even though the persistent marker is not written until readback.
     private var pendingMappingEnableCount = 0
     private let mappingRepairInterval: TimeInterval = 3
+    /// Failed starts in a row. A start right after wake, a session switch or a
+    /// keyboard reconnect can race hidd re-enumerating keyboards; without a
+    /// retry that one failure left the key dead until toggled by hand.
+    private var startRetryCount = 0
     /// Lets go of a press whose release never arrived. Without it the chosen
     /// modifiers would ride every keystroke from then on, with no way back but
     /// pressing the key again, and typing would be dead in the meantime.
@@ -523,7 +527,8 @@ final class SuperKeyService: ObservableObject {
         var startedGuard = false
         var mappingConfirmed = false
         if enabled {
-            if let mappingGuard, mappingGuard.source != source {
+            // A guard that exited on its own can no longer clean up; replace it.
+            if let mappingGuard, mappingGuard.source != source || !mappingGuard.isAlive {
                 guard mappingGuard.stop() else { return .systemRefused }
                 self.mappingGuard = nil
             }
@@ -588,18 +593,30 @@ final class SuperKeyService: ObservableObject {
             }
             guard active else { return }
             guard let failure else {
+                self.startRetryCount = 0
                 self.setMappingFailure(nil)
                 if publishingRunState || !self.isRunning { self.finishStart() }
                 return
             }
             if publishingRunState {
                 self.stop()
+                self.scheduleStartRetry()
             } else {
                 // A failed repair keeps the existing tap alive so a later
                 // repair can recover without rebuilding the event pipeline.
                 self.isRunning = false
             }
             self.setMappingFailure(failure)
+        }
+    }
+
+    private func scheduleStartRetry() {
+        startRetryCount += 1
+        guard let delay = SuperKeySupport.startRetryDelay(afterFailures: startRetryCount)
+        else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, !self.isRunning else { return }
+            self.syncWithPreferences()
         }
     }
 

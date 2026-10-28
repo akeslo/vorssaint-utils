@@ -49,6 +49,8 @@ enum SuperKeyMappingGuard {
             self.finished = finished
         }
 
+        var isAlive: Bool { process.isRunning }
+
         /// Closing the pipe asks the guard to clean now. The app has already
         /// attempted the same clear; this bounded second pass covers a failed
         /// command without ever holding termination indefinitely.
