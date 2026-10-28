@@ -231,6 +231,13 @@ enum SuperKeySupport {
         return !tables.isEmpty && tables.allSatisfy { mappingsMatch($0, expected) }
     }
 
+    /// Backoff for retrying a failed start: 2, 4, 8, 16, 30, 30 seconds, then
+    /// give up so a keyboard that truly refuses the mapping stops being asked.
+    static func startRetryDelay(afterFailures failures: Int) -> TimeInterval? {
+        guard (1...6).contains(failures) else { return nil }
+        return min(30, TimeInterval(1 << failures))
+    }
+
     /// An unconfirmed clear never changes the write-ahead machine-state
     /// marker, so a failed clear remains eligible for retry.
     static func mappingMarkerAfterClear(previous: Bool,

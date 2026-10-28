@@ -2482,6 +2482,12 @@ enum PointerInputFeatureTests {
                                              [foreignMapping, capsMapping])
                 && !SuperKeySupport.mappingsMatch([capsMapping], [foreignMapping]),
                "mapping readback compares the complete table without depending on its order")
+        suite.expect(SuperKeySupport.startRetryDelay(afterFailures: 0) == nil
+                && SuperKeySupport.startRetryDelay(afterFailures: 1) == 2
+                && SuperKeySupport.startRetryDelay(afterFailures: 5) == 30
+                && SuperKeySupport.startRetryDelay(afterFailures: 6) == 30
+                && SuperKeySupport.startRetryDelay(afterFailures: 7) == nil,
+                     "A failed Super Key start retries with bounded backoff, then gives up")
         suite.expect(SuperKeySupport.mappingMarkerAfterClear(previous: true,
                                                        readbackConfirmed: false)
                 && !SuperKeySupport.mappingMarkerAfterClear(previous: true,
