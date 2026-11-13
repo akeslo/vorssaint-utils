@@ -8,6 +8,8 @@ Not legal advice. Audited 2026-10-13 against upstream's LICENSE, TRADEMARKS.md, 
 - Keep each author's name on the cherry-pick and credit them in the README's adopted list (generated). Each carried PR lands on `main` through a merged PR on this fork (`scripts/adopt-pr.sh <n>`, via `scripts/land-pr.sh`), so GitHub keeps who wrote what and the upstream link; sync drops the commits once upstream merges it.
 - Before adding a number, run `scripts/check-carried-licensing.sh <pr>`. It fails on any added license or copyright line other than upstream's own header, mentions of another source, non-system imports, or dependency changes. Fix or reject on a finding.
 - Checked 2026-10-13, all clean (Apple frameworks only, upstream header only): #1879, #2909, #3010, #2966.
+- A link to another repository counts as a mention of another source. One that was reviewed and accepted goes in `scripts/licensing-reviewed.txt` with its source, license and what was taken, and the check then passes it.
+- Checked 2026-11-12: #3492 clean. #4089 cites lwouis/alt-tab-macos (GPL-3.0, compatible) for private SkyLight API signatures and WindowServer event IDs, interface facts rather than copied code. Accepted with the citations kept as attribution.
 
 ## GPL duties
 
