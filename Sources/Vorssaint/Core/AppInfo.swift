@@ -25,6 +25,12 @@ enum AppInfo {
         (Bundle.main.bundleIdentifier ?? "").hasSuffix(".dev")
     }
 
+    /// This fork never updates from GitHub releases. It has none of its own,
+    /// and the updater would install upstream’s official build over it,
+    /// dropping the fork’s features. Update it from source instead with
+    /// `scripts/sync-upstream.sh --install`. Covers the developer build too.
+    static var skipsReleaseUpdates: Bool { true }
+
     /// True when the current version is a pre-release (e.g. 3.3.4-beta.1 or 3.3.4-rc.1).
     static var isBeta: Bool {
         if isDeveloperBuild && UserDefaults.standard.bool(forKey: DefaultsKey.simulateBetaUI) {
