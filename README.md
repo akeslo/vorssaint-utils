@@ -32,6 +32,8 @@ Open pull requests I have offered upstream:
 Other people's upstream pull requests I carry here until they merge:
 
 - [#1879](https://github.com/vorssaint/vorssaint-utils/pull/1879) feat(port-manager): include UDP listeners, by [@bebricoOOOOOOf](https://github.com/bebricoOOOOOOf)
+- [#3492](https://github.com/vorssaint/vorssaint-utils/pull/3492) feat(clipboard): cycle history with the opening shortcut, by [@ekurer](https://github.com/ekurer)
+- [#4089](https://github.com/vorssaint/vorssaint-utils/pull/4089) perf(switcher): monitor windows list in the background for fast switching, by [@LeLocTai](https://github.com/LeLocTai)
 <!-- /adopted-prs -->
 
 <!-- pr:2524 -->
