@@ -22,14 +22,17 @@ git diff upstream/main..HEAD -- '*.swift' | grep -E '^\+\s*import ' | grep -vE '
 
 # Carried PRs: only upstream's own header, no new foreign licenses, no non-system imports.
 prs=${*:-$(grep -E '^[0-9]+$' scripts/adopted-prs.txt)}
+# PRs whose mentions of another source were reviewed and accepted (docs/FORK-LICENSING.md).
+reviewed=" $(grep -oE '^[0-9]+' scripts/licensing-reviewed.txt 2>/dev/null | tr '\n' ' ') "
 for n in $prs; do
   d=$(gh pr diff "$n" --repo vorssaint/vorssaint-utils) || { echo "FAIL: cannot fetch #$n"; bad=1; continue; }
   added=$(grep -E '^\+' <<<"$d" | grep -vE '^\+\+\+')
   if grep -iE 'copyright|SPDX-License' <<<"$added" | grep -vE 'SPDX-License-Identifier: GPL-3.0-or-later|Copyright \(C\) 2026 Vorssaint' | grep -q .; then
     echo "FAIL: #$n adds a license or copyright line other than upstream's"; bad=1; fi
-  if grep -iE 'apache|BSD|\bMIT licen|adapted from|based on|ported from|stackoverflow|gist\.github' <<<"$added" | grep -q .; then
+  if [[ $reviewed != *" $n "* ]] && { grep -iE 'apache|BSD|\bMIT licen|adapted from|based on|ported from|stackoverflow|gist\.github' <<<"$added" | grep -q . \
+       || grep -oiE 'github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' <<<"$added" | grep -viE 'github\.com/vorssaint/' | grep -q .; }; then
     echo "REVIEW: #$n mentions another source or license"; bad=1; fi
-  if grep -E '^\+\s*(@_exported )?import ' <<<"$added" | grep -vE 'import (AppKit|Foundation|SwiftUI|Combine|CoreGraphics|CoreImage|IOKit|Vision|ImageIO|UniformTypeIdentifiers|XCTest|OSLog|os)\b' | grep -q .; then
+  if grep -E '^\+\s*(@_exported )?import ' <<<"$added" | grep -vE 'import (AppKit|ApplicationServices|Darwin|Foundation|SwiftUI|Combine|CoreGraphics|CoreImage|IOKit|Vision|ImageIO|UniformTypeIdentifiers|XCTest|OSLog|os)\b' | grep -q .; then
     echo "REVIEW: #$n imports a non-system module"; bad=1; fi
   grep -qE '^\+\+\+ b/(Package\.(swift|resolved)|Vendor|ThirdParty)' <<<"$d" && { echo "FAIL: #$n touches dependencies"; bad=1; }
   echo "checked #$n"

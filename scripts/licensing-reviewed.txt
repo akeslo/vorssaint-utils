@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Carried PRs whose mentions of another source were reviewed and accepted.
+# <pr> <source> <license>: what was taken. See docs/FORK-LICENSING.md.
+4089 lwouis/alt-tab-macos GPL-3.0: private SkyLight API signatures and WindowServer event IDs (interface facts), cited in comments
