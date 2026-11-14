@@ -1,7 +1,7 @@
 name: Sync upstream
 
 # GitHub cannot trigger a fork's workflow from a push to someone else's repo,
-# so poll: every six hours, and on demand from the Actions tab.
+# so poll: once a week (Mondays), and on demand from the Actions tab.
 #
 # Two jobs on purpose. `test` runs upstream's build and tests, which is
 # arbitrary code from a repo this fork does not control, so it has no secrets.
@@ -11,7 +11,7 @@ name: Sync upstream
 # (same tree) to what `test` verified.
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 permissions:
