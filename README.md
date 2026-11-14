@@ -15,7 +15,7 @@
 > The extras here are features I built for myself and found useful, such as break reminders and the clipboard and PDF optimizers. Some of them are offered back upstream as pull requests. This is a passion project, not a product: **I don't plan to maintain it**, so expect no support, roadmap or release schedule. Take what helps, and if you want a polished, maintained app, go to upstream.
 
 <!-- upstream-sync -->
-Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils) at [`ce127647`](https://github.com/vorssaint/vorssaint-utils/commit/ce1276470d2b1115c8c3398f34e82079905fffba) on 2026-11-11 ("chore: reopen changelog after 3.4.4"), after release v3.4.4.
+Last synced with [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils) at [`89d26260`](https://github.com/vorssaint/vorssaint-utils/commit/89d2626089d693bf0462ba29ea5d047d80c9da2e) on 2026-11-13 ("chore(agents): update AI price list"), after release v3.4.4.
 <!-- /upstream-sync -->
 
 ## What this adds
